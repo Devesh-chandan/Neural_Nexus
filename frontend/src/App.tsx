@@ -3,12 +3,19 @@ import { Search } from 'lucide-react';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import ClientPage from './pages/ClientPage';
+import ClientRegisterPage from './pages/ClientRegisterPage';
 import RMPage from './pages/RMPage';
+import RMRegisterPage from './pages/RMRegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 
 function AppRoutes() {
   const location = useLocation();
+  // Hide navbar on login page
+  const hideNavbar = location.pathname === '/login';
   const mode =
     location.pathname.startsWith('/rm')
       ? 'rm'
@@ -18,13 +25,42 @@ function AppRoutes() {
 
   return (
     <>
-      <Navbar mode={mode} />
+      {!hideNavbar && <Navbar mode={mode} />}
       <main id="main-content" role="main">
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/client" element={<ClientPage />} />
-          <Route path="/rm" element={<RMPage />} />
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Client registration is public (you register to get an account) */}
+          <Route path="/client/register" element={<ClientRegisterPage />} />
+
+          {/* RM registration is public (RMs onboard themselves) */}
+          <Route path="/rm/register" element={<RMRegisterPage />} />
+
+          {/* Protected: RM routes */}
+          <Route
+            path="/rm"
+            element={
+              <ProtectedRoute requiredRole="rm">
+                <RMPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected: Client routes */}
+          <Route
+            path="/client"
+            element={
+              <ProtectedRoute requiredRole="client">
+                <ClientPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Dashboard is accessible to authenticated users of either role */}
           <Route path="/dashboard/:runId" element={<DashboardPage />} />
+
           {/* 404 fallback */}
           <Route
             path="*"
@@ -80,7 +116,9 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

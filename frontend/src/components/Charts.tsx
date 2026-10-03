@@ -59,66 +59,69 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,131,208,0.1)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
         <XAxis
           dataKey="x"
           tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-          stroke="var(--text-muted)"
+          stroke="var(--stone)"
           tick={{ fontSize: 11 }}
-          label={{ value: 'Underlying Level', position: 'insideBottom', offset: -4, fontSize: 11, fill: 'var(--text-muted)' }}
+          label={{ value: 'Underlying Level', position: 'insideBottom', offset: -4, fontSize: 11, fill: 'var(--stone)' }}
         />
         <YAxis
           tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
-          stroke="var(--text-muted)"
+          stroke="var(--stone)"
           tick={{ fontSize: 11 }}
           width={52}
         />
         <Tooltip
           contentStyle={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
+            background: 'var(--surface-elevated)',
+            border: '1px solid var(--hairline-dark)',
+            borderRadius: 8,
             fontSize: 12,
+            color: 'var(--on-dark)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            padding: '10px 14px',
           }}
-          formatter={(val: number, name: string) => [
-            name === 'net_return' ? `${val > 0 ? '+' : ''}${val.toFixed(2)}%` : val,
+          formatter={(val: any, name: any) => [
+            name === 'net_return' ? `${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(2)}%` : val,
             name === 'net_return' ? 'Net Return' : 'Final Value',
           ]}
-          labelFormatter={(l) => `Underlying: ${(+l * 100).toFixed(1)}%`}
+          labelFormatter={(l: any) => `Underlying: ${(Number(l ?? 0) * 100).toFixed(1)}%`}
         />
-        <ReferenceLine y={0} stroke="rgba(99,131,208,0.4)" strokeDasharray="4 2" />
+        <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
         {breakEven != null && (
           <ReferenceLine
             x={breakEven}
-            stroke="var(--accent-cyan)"
+            stroke="var(--accent-teal)"
             strokeDasharray="5 3"
-            label={{ value: 'Break-even', fontSize: 10, fill: 'var(--accent-cyan)', position: 'top' }}
+            label={{ value: 'Break-even', fontSize: 10, fill: 'var(--accent-teal)', position: 'top' }}
           />
         )}
         {barrierX != null && (
           <ReferenceLine
             x={barrierX}
-            stroke="var(--accent-red)"
+            stroke="var(--accent-danger)"
             strokeDasharray="5 3"
-            label={{ value: 'Barrier', fontSize: 10, fill: 'var(--accent-red)', position: 'top' }}
+            label={{ value: 'Barrier', fontSize: 10, fill: 'var(--accent-danger)', position: 'top' }}
           />
         )}
         {fdBaseline != null && (
           <ReferenceLine
             y={fdBaseline * 100}
-            stroke="var(--accent-amber)"
+            stroke="var(--accent-warning)"
             strokeDasharray="5 3"
-            label={{ value: 'FD Baseline', fontSize: 10, fill: 'var(--accent-amber)', position: 'right' }}
+            label={{ value: 'FD Baseline', fontSize: 10, fill: 'var(--accent-warning)', position: 'right' }}
           />
         )}
         <Area
           type="monotone"
           dataKey="net_return"
-          stroke="#3b82f6"
+          stroke="#4f55f1"
           strokeWidth={2}
           fill="url(#payoffGrad)"
           dot={false}
-          activeDot={{ r: 4, fill: '#3b82f6' }}
+          activeDot={{ r: 4, fill: '#4f55f1' }}
         />
       </AreaChart>
     </ResponsiveContainer>
@@ -149,23 +152,31 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
       {title && <div className="stat-label" style={{ marginBottom: 8 }}>{title}</div>}
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,131,208,0.1)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="var(--text-muted)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="var(--stone)" />
           <YAxis
             tickFormatter={(v) => `${v}%`}
             tick={{ fontSize: 10 }}
-            stroke="var(--text-muted)"
+            stroke="var(--stone)"
             width={36}
           />
           <Tooltip
-            contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }}
-            formatter={(v: number) => [`${v.toFixed(2)}%`, 'Frequency']}
+            contentStyle={{
+              background: 'var(--surface-elevated)',
+              border: '1px solid var(--hairline-dark)',
+              borderRadius: 8,
+              fontSize: 12,
+              color: 'var(--on-dark)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              padding: '10px 14px',
+            }}
+            formatter={(v: any) => [`${Number(v ?? 0).toFixed(2)}%`, 'Frequency']}
           />
           <Bar dataKey="freq" radius={[2, 2, 0, 0]}>
             {data.map((d, i) => (
               <Cell
                 key={i}
-                fill={d.isLoss ? 'rgba(239,68,68,0.7)' : 'rgba(59,130,246,0.7)'}
+                fill={d.isLoss ? 'rgba(226,59,74,0.75)' : 'rgba(79,85,241,0.75)'}
               />
             ))}
           </Bar>
@@ -191,29 +202,37 @@ export const MCFanChart: React.FC<MCFanChartProps> = ({ mc, height = 240 }) => {
     return row;
   });
 
-  const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
+  const colors = ['#e23b4a', '#ec7e00', '#4f55f1', '#00a87e', '#a855f7'];
 
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,131,208,0.1)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
         <XAxis
           dataKey="t"
           tickFormatter={(v) => `${v}%`}
           tick={{ fontSize: 10 }}
-          stroke="var(--text-muted)"
-          label={{ value: 'Time (% of tenor)', position: 'insideBottom', offset: -4, fontSize: 11, fill: 'var(--text-muted)' }}
+          stroke="var(--stone)"
+          label={{ value: 'Time (% of tenor)', position: 'insideBottom', offset: -4, fontSize: 11, fill: 'var(--stone)' }}
         />
         <YAxis
           tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
           tick={{ fontSize: 10 }}
-          stroke="var(--text-muted)"
+          stroke="var(--stone)"
           width={48}
         />
-        <ReferenceLine y={0} stroke="rgba(99,131,208,0.4)" strokeDasharray="4 2" />
+        <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
         <Tooltip
-          contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }}
-          formatter={(v: number, name: string) => [`${v > 0 ? '+' : ''}${v.toFixed(2)}%`, `P${name.slice(1)}`]}
+          contentStyle={{
+            background: 'var(--surface-elevated)',
+            border: '1px solid var(--hairline-dark)',
+            borderRadius: 8,
+            fontSize: 12,
+            color: 'var(--on-dark)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            padding: '10px 14px',
+          }}
+          formatter={(v: any, name: any) => [`${Number(v ?? 0) > 0 ? '+' : ''}${Number(v ?? 0).toFixed(2)}%`, `P${String(name ?? '').slice(1)}`]}
         />
         {mc.fan_percentiles.map((p, pi) => (
           <Line
@@ -243,7 +262,7 @@ interface PriceChartProps {
 export const PriceChart: React.FC<PriceChartProps> = ({
   series,
   height = 200,
-  color = '#3b82f6',
+  color = '#4f55f1',
 }) => {
   // Downsample for performance if needed
   const data = useMemo(() => {
@@ -257,22 +276,30 @@ export const PriceChart: React.FC<PriceChartProps> = ({
       <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
             <stop offset="95%" stopColor={color} stopOpacity={0.01} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,131,208,0.08)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
         <XAxis
           dataKey="date"
           tick={{ fontSize: 10 }}
-          stroke="var(--text-muted)"
+          stroke="var(--stone)"
           tickFormatter={(d) => d.slice(0, 7)}
           interval="preserveStartEnd"
         />
-        <YAxis tick={{ fontSize: 10 }} stroke="var(--text-muted)" width={56} />
+        <YAxis tick={{ fontSize: 10 }} stroke="var(--stone)" width={56} />
         <Tooltip
-          contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }}
-          formatter={(v: number) => [v.toFixed(2), 'Close']}
+          contentStyle={{
+            background: 'var(--surface-elevated)',
+            border: '1px solid var(--hairline-dark)',
+            borderRadius: 8,
+            fontSize: 12,
+            color: 'var(--on-dark)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            padding: '10px 14px',
+          }}
+          formatter={(v: any) => [Number(v ?? 0).toFixed(2), 'Close']}
         />
         <Area
           type="monotone"

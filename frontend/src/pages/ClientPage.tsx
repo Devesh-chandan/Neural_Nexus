@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { User, Trophy, ArrowRight } from 'lucide-react';
 import { runRecommend, createCase } from '../api';
 import type { ClientProfile, RecommendationResult } from '../types';
@@ -99,15 +99,19 @@ const ClientPage: React.FC = () => {
                 Tell us about your investment profile and we'll recommend suitable structured products.
               </p>
             </div>
-            {step === 'results' && (
-              <button
-                className="btn btn-outline-dark"
-                onClick={() => { setStep('profile'); setResult(null); }}
-                style={{ alignSelf: 'flex-start' }}
-              >
-                ← Start Over
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              <Link to="/client/register" className="btn btn-outline-dark btn-sm">
+                <User size={14} /> Full KYC & Broker Import →
+              </Link>
+              {step === 'results' && (
+                <button
+                  className="btn btn-outline-dark btn-sm"
+                  onClick={() => { setStep('profile'); setResult(null); }}
+                >
+                  ← Start Over
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -546,7 +550,7 @@ const RecommendationView: React.FC<RecViewProps> = ({
             <StatBox label="Fit Score" value={`${(result.best.fit_score * 100).toFixed(0)}/100`} color="positive" />
             <StatBox
               label="P(Loss)"
-              value={`${((result.best.metrics_summary as { p_loss?: number }).p_loss ?? 0 * 100).toFixed(1)}%`}
+              value={`${(((result.best.metrics_summary as { p_loss?: number }).p_loss ?? 0) * 100).toFixed(1)}%`}
             />
             <StatBox
               label="Underlying"

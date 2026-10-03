@@ -57,6 +57,247 @@ export interface ClientProfile {
   target_return_pa?: number | null;
   preferred_underlying_types?: string[] | null;
   needs_liquidity_within_months?: number | null;
+  age_years?: number | null;
+
+  // KYC & identity (set by client registration)
+  date_of_birth?: string | null;
+  employment_status?: EmploymentStatus | null;
+  national_tax_id?: string | null;
+  kyc_verified?: boolean;
+  kyc_source?: KycSource | null;
+  kyc_provider?: string | null;
+
+  // Financial capacity (set by client registration)
+  liquid_net_worth?: number | null;
+  annual_income?: number | null;
+  source_of_funds?: SourceOfFunds | null;
+  previous_investment_exposure_pct?: number | null;
+}
+
+// ── KYC & client registration ───────────────────────────────────────────────
+
+export type EmploymentStatus =
+  | 'salaried'
+  | 'self_employed'
+  | 'business_owner'
+  | 'professional'
+  | 'student'
+  | 'retired'
+  | 'homemaker'
+  | 'not_specified';
+
+export type SourceOfFunds =
+  | 'salary'
+  | 'business_income'
+  | 'freelance'
+  | 'investment_proceeds'
+  | 'property_sale'
+  | 'inheritance'
+  | 'business_sale'
+  | 'gift'
+  | 'loan'
+  | 'other';
+
+export type BrokerProvider = 'kite' | 'zerodha_console' | 'groww' | 'cred';
+export type KycSource = 'manual' | 'broker_import';
+
+export interface KYCIdentity {
+  legal_name: string;
+  date_of_birth: string;
+  employment_status: EmploymentStatus;
+  national_tax_id: string | null;
+}
+
+export interface KYCFinancials {
+  liquid_net_worth: number;
+  annual_income: number;
+  source_of_funds: SourceOfFunds | null;
+  previous_investment_exposure_pct: number;
+  investment_amount: number;
+}
+
+/** The four PS-locked questions. Every one of them is mandatory. */
+export interface SuitabilityAnswers {
+  risk_appetite: RiskAppetite;
+  investment_horizon_years: number;
+  loss_tolerance_pct: number;
+  current_portfolio_concentration_pct: number;
+  experience: Experience;
+}
+
+export interface BrokerLinkPayload {
+  provider: BrokerProvider;
+  handle: string;
+}
+
+export interface ClientRegistrationPayload {
+  identity: KYCIdentity;
+  financials: KYCFinancials;
+  suitability: SuitabilityAnswers;
+  broker_link: BrokerLinkPayload | null;
+  consent_kyc: boolean;
+  consent_sof: boolean;
+}
+
+export interface ClientRegistrationResponse {
+  case_id: string;
+  client_name: string;
+  kyc_source: KycSource;
+  kyc_verified: boolean;
+  kyc_flags: string[];
+  age_years: number;
+  profile: ClientProfile;
+  next_step: string;
+}
+
+export interface ProviderInfo {
+  key: BrokerProvider;
+  label: string;
+  category: string;
+  auth: string;
+  scopes: string[];
+  notes: string;
+}
+
+export interface ProvidersResponse {
+  providers: ProviderInfo[];
+  disclaimer: string;
+}
+
+export interface KycImportResponse {
+  provider: BrokerProvider;
+  provider_label: string;
+  handle_masked: string;
+  linked_at: string;
+  scope_granted: string[];
+  identity: Record<string, unknown>;
+  financials: Record<string, unknown>;
+  kyc_verified: boolean;
+  kyc_flags: string[];
+  fields_prefilled: string[];
+  fields_still_required: string[];
+  disclaimer: string;
+}
+
+// ── RM registration & RBAC ──────────────────────────────────────────────────
+
+export type AccessTier = 'junior_rm' | 'senior_advisor' | 'branch_manager';
+
+export type Jurisdiction = 'IN' | 'US' | 'UK' | 'AE' | 'SG' | 'EU' | 'HK' | 'AU';
+
+export interface RMSIdentity {
+  legal_name: string;
+  corporate_email: string;
+  employee_id: string;
+}
+
+export interface RMSCompliance {
+  regulatory_registration_number: string;
+  operating_jurisdiction: Jurisdiction;
+  product_types_authorised: string[];
+}
+
+export interface RMSAccess {
+  institution: string;
+  branch_code: string;
+  department: string | null;
+  access_tier: AccessTier;
+}
+
+export interface RMSRegistrationPayload {
+  identity: RMSIdentity;
+  compliance: RMSCompliance;
+  access: RMSAccess;
+}
+
+export interface RbacSummary {
+  access_tier: AccessTier;
+  access_tier_label: string;
+  permissions: string[];
+  permission_labels: Record<string, string>;
+  can_finalise: boolean;
+  finalise_blocked_reason: string | null;
+  permitted_product_types: string[];
+  jurisdiction_label: string;
+  regulator: string;
+}
+
+export interface RMSRegistrationResponse {
+  rm_id: string;
+  legal_name: string;
+  corporate_email: string;
+  email_domain: string;
+  employee_id: string;
+  institution: string;
+  branch_code: string;
+  department: string | null;
+  access_tier: AccessTier;
+  regulatory_registration_number: string;
+  operating_jurisdiction: Jurisdiction;
+  authorised_product_types: string[];
+  rbac: RbacSummary;
+  registered_at: string;
+  next_step: string;
+}
+
+export interface AccessTierInfo {
+  key: AccessTier;
+  label: string;
+  rank: number | null;
+  description: string;
+  escalate_to: string | null;
+  permissions: string[];
+  can_finalise: boolean;
+  finalise_blocked_reason: string | null;
+  permission_labels: Record<string, string>;
+}
+
+export interface AccessTiersResponse {
+  tiers: AccessTierInfo[];
+  permission_vocabulary: string[];
+}
+
+export interface JurisdictionInfo {
+  code: Jurisdiction;
+  label: string;
+  regulator: string;
+  currency: string;
+  permitted_product_types: string[];
+  registration_number_label: string;
+  registration_number_example?: string | null;
+}
+
+export interface EmailCheckResponse {
+  email: string;
+  accepted: boolean;
+  domain: string | null;
+  is_public_provider: boolean;
+  message: string;
+}
+
+export interface FinaliseResponse {
+  allowed: boolean;
+  rm_id: string;
+  run_id: string;
+  access_tier: AccessTier;
+  reason: string | null;
+  escalate_to: string | null;
+  finalised_at: string | null;
+}
+
+export interface BranchRoster {
+  institution: string;
+  branch_code: string;
+  count: number;
+  members: Array<{
+    rm_id: string;
+    legal_name: string;
+    employee_id: string;
+    access_tier: AccessTier;
+    department: string | null;
+    operating_jurisdiction: string;
+    created_at: string;
+  }>;
 }
 
 // ── Market data ────────────────────────────────────────────────────────────
@@ -238,6 +479,9 @@ export interface SummaryFlags {
   concentration: RuleStatus;
   appetite: RuleStatus;
   complexity: RuleStatus;
+  life_stage: RuleStatus;
+  affordability: RuleStatus;
+  kyc_aml: RuleStatus;
 }
 
 export interface SuitabilityResult {
