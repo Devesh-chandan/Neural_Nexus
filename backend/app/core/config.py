@@ -65,3 +65,9 @@ def get_products_config() -> dict[str, Any]:
 @lru_cache
 def get_suitability_rules() -> dict[str, Any]:
     return load_yaml("suitability_rules.yaml")
+
+
+@lru_cache
+def get_registration_config() -> dict[str, Any]:
+    """KYC / RBAC / jurisdiction configuration for the registration surfaces."""
+    return load_yaml("registration.yaml")

@@ -51,3 +51,19 @@ def update_recommendation_id(case_id: str, recommendation_id: str) -> None:
             (recommendation_id, case_id),
         )
     conn.close()
+
+
+def list_cases() -> list[dict]:
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM cases ORDER BY created_at DESC").fetchall()
+    conn.close()
+    res = []
+    for r in rows:
+        d = dict(r)
+        try:
+            d["profile"] = json.loads(d.pop("profile_json"))
+        except Exception:
+            d["profile"] = {}
+        res.append(d)
+    return res
+

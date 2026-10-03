@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from app.core.errors import AppError
 from app.store.audit import get_audit_record
-from app.store.cases import create_case, get_case
+from app.store.cases import create_case, get_case, list_cases
 from app.store.db import init_db
 from app.store.runs import load_run
 
@@ -33,6 +33,13 @@ DISCLAIMER = (
 
 class CaseCreateRequest(BaseModel):
     profile: Dict[str, Any]
+
+
+@router.get("/cases")
+async def list_cases_route() -> Dict[str, Any]:
+    init_db()
+    cases = list_cases()
+    return {"cases": cases, "count": len(cases)}
 
 
 @router.post("/cases")

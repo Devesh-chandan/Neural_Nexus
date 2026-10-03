@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import List
 
-from app.core.config import get_suitability_rules
+from app.core.config import get_registration_config, get_suitability_rules
 from app.schemas.analysis import MetricsBundle
 from app.schemas.client import ClientProfile
 from app.schemas.suitability import RuleResult, ScoreDriver, SummaryFlags
@@ -19,27 +19,39 @@ _WEIGHTS = {
     "R-COMPLEX": 10,
     "R-FX": 0,
     "R-PRICE": 0,
+    "R-AGE": 10,
+    "R-AFFORD": 15,
+    "R-KYC": 0,
 }
+
+# Informational rules that deduct a flat number of points when they fire,
+# regardless of their computed severity.
+_FLAT_RULES = ("R-FX", "R-PRICE", "R-KYC")
 
 
 def compute_score(rules: List[RuleResult]) -> tuple:
     """
     Returns (score, score_drivers).
-    Score: 100 minus weighted penalties. R-FX/R-PRICE use flat deduction.
+    Score: 100 minus weighted penalties. Informational rules (R-FX, R-PRICE,
+    R-KYC) use a flat deduction so an incomplete KYC file can never dominate
+    the fit of the product itself.
     """
     cfg = get_suitability_rules()
     penalties = cfg["scoring"]
     flat_fx = cfg["rules"]["R-FX"]["flat_penalty"]
     flat_price = cfg["rules"]["R-PRICE"]["flat_penalty"]
+    flat_kyc = get_registration_config()["client_thresholds"].get("kyc_flat_penalty", 2)
+
+    flat_map = {"R-FX": flat_fx, "R-PRICE": flat_price, "R-KYC": flat_kyc}
 
     score = 100.0
     drivers: List[ScoreDriver] = []
 
     for rule in rules:
         weight = _WEIGHTS.get(rule.rule_id, 0)
-        if rule.rule_id in ("R-FX", "R-PRICE"):
+        if rule.rule_id in _FLAT_RULES:
             if rule.status != "GREEN":
-                deduction = flat_fx if rule.rule_id == "R-FX" else flat_price
+                deduction = flat_map.get(rule.rule_id, flat_fx)
                 score -= deduction
                 drivers.append(
                     ScoreDriver(
@@ -104,4 +116,7 @@ def compute_summary_flags(rules: List[RuleResult], metrics: MetricsBundle) -> Su
         concentration=_status("R-CONC"),
         appetite=_status("R-RISK"),
         complexity=_status("R-COMPLEX"),
+        life_stage=_status("R-AGE"),
+        affordability=_status("R-AFFORD"),
+        kyc_aml=_status("R-KYC"),
     )

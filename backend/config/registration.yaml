@@ -1,0 +1,238 @@
+# Registration, KYC and RBAC configuration.
+# IMPORTANT: These are ILLUSTRATIVE values pending compliance review.
+# Code reads this file at startup; changing values here changes enforcement
+# behaviour without code changes.
+
+# ─── Corporate email policy ──────────────────────────────────────────────────
+# Public / consumer mailbox providers. An RM registering on this platform must
+# present an institutional address so client PII cannot leak to a personal inbox.
+blocked_public_email_domains:
+  - gmail.com
+  - googlemail.com
+  - yahoo.com
+  - yahoo.co.in
+  - ymail.com
+  - outlook.com
+  - hotmail.com
+  - live.com
+  - msn.com
+  - icloud.com
+  - me.com
+  - aol.com
+  - gmx.com
+  - gmx.de
+  - mail.com
+  - zoho.com
+  - protonmail.com
+  - proton.me
+  - yandex.com
+  - rediffmail.com
+  - qq.com
+  - 163.com
+  - 126.com
+  - naver.com
+  - tutanota.com
+  - mail.ru
+
+# Domains that are claimed by a real institution in this SaaS deployment.
+# Leaving this empty keeps the demo open (any non-public domain is accepted),
+# which is why `require_known_institution_domain` defaults to false.
+institution_email_domains: []
+require_known_institution_domain: false
+
+# ─── Regulatory registration numbers ─────────────────────────────────────────
+# Validated against the RM's declared operating jurisdiction.
+regulatory_numbers:
+  IN:
+    label: "SEBI Registration Number"
+    min_length: 11
+    pattern: "^IN[A-Z0-9]{9,12}$"
+    example: "INZ000000001"
+  US:
+    label: "FINRA CRD Number"
+    min_length: 5
+    pattern: "^[0-9]{5,10}$"
+    example: "1234567"
+  UK:
+    label: "FCA Reference Number"
+    min_length: 6
+    pattern: "^[0-9]{6,10}$"
+    example: "765432"
+  AE:
+    label: "DFSA / SCA License Number"
+    min_length: 6
+    pattern: "^[A-Z0-9/-]{6,20}$"
+    example: "DFSA-CSA-12345"
+  SG:
+    label: "MAS Capital Markets Services License"
+    min_length: 6
+    pattern: "^[A-Z0-9/-]{6,20}$"
+    example: "CMS101234"
+  EU:
+    label: "ESMA / National Competent Authority ID"
+    min_length: 6
+    pattern: "^[A-Z0-9/-]{6,20}$"
+    example: "ESMA-123456"
+  HK:
+    label: "SFC Central Number"
+    min_length: 6
+    pattern: "^[A-Z0-9/-]{6,20}$"
+    example: "SFC-ABC123"
+  AU:
+    label: "ASIC AFSL / ABL Number"
+    min_length: 6
+    pattern: "^[0-9]{6,10}$"
+    example: "401234"
+
+# ─── Jurisdictions ───────────────────────────────────────────────────────────
+jurisdictions:
+  IN:
+    label: "India"
+    regulator: "SEBI"
+    currency: "INR"
+  US:
+    label: "United States"
+    regulator: "SEC / FINRA"
+    currency: "USD"
+  UK:
+    label: "United Kingdom"
+    regulator: "FCA"
+    currency: "GBP"
+  AE:
+    label: "United Arab Emirates"
+    regulator: "DFSA / SCA"
+    currency: "AED"
+  SG:
+    label: "Singapore"
+    regulator: "MAS"
+    currency: "SGD"
+  EU:
+    label: "European Union"
+    regulator: "ESMA"
+    currency: "EUR"
+  HK:
+    label: "Hong Kong"
+    regulator: "SFC"
+    currency: "HKD"
+  AU:
+    label: "Australia"
+    regulator: "ASIC"
+    currency: "AUD"
+
+# ─── Jurisdiction × product-type gating ──────────────────────────────────────
+# An RM can only configure structures that are legally sellable in their
+# territory. Everything not listed is blocked.
+jurisdiction_product_matrix:
+  IN: ["ELN", "CPN", "DCD"]
+  US: ["CPN"]
+  UK: ["CPN"]
+  AE: ["CPN", "DCD"]
+  SG: ["CPN"]
+  EU: ["CPN"]
+  HK: ["CPN"]
+  AU: ["CPN"]
+
+# ─── Access tiers (principle of least privilege) ────────────────────────────
+access_tiers:
+  junior_rm:
+    label: "Junior RM"
+    rank: 1
+    escalate_to: "Senior Advisor"
+    description: >
+      May load a client profile, simulate payoffs and read the suitability
+      outcome. Cannot confirm or finalise a product configuration.
+    permissions:
+      - simulate
+      - view_suitability
+      - draft_configuration
+      - view_client_kyc
+  senior_advisor:
+    label: "Senior Advisor"
+    rank: 2
+    escalate_to: "Branch Manager"
+    description: >
+      Everything a Junior RM can do, plus confirming and finalising a product
+      configuration for the client and issuing client-facing reports.
+    permissions:
+      - simulate
+      - view_suitability
+      - draft_configuration
+      - finalise_configuration
+      - export_report
+      - view_client_kyc
+  branch_manager:
+    label: "Branch Manager"
+    rank: 3
+    escalate_to: null
+    description: >
+      Full control: finalisation, suitability-override approval, branch-level
+      reporting and product catalogue management.
+    permissions:
+      - simulate
+      - view_suitability
+      - draft_configuration
+      - finalise_configuration
+      - approve_override
+      - export_report
+      - view_client_kyc
+      - view_team_reports
+      - manage_product_catalogue
+
+# ─── Life-stage / affordability thresholds ────────────────────────────────────
+# Used by the deterministic suitability engine (R-AGE, R-AFFORD).
+client_thresholds:
+  min_investor_age: 18
+  assumed_retirement_age: 60
+  # Share of liquid net worth that may be placed in a single structured product.
+  amber_allocation_of_liquid_net_worth: 0.15
+  red_allocation_of_liquid_net_worth: 0.30
+  # Multiple of annual income in a single illiquid position.
+  amber_income_multiple: 2.0
+  red_income_multiple: 4.0
+  # Above this ticket size, source of funds becomes an AML requirement.
+  aml_source_of_funds_threshold: 5000000
+  # Flat score deduction when the KYC/AML rule is not GREEN. Informational only –
+  # a missing tax ID must never change a suitability verdict, only surface itself.
+  kyc_flat_penalty: 2
+
+# ─── KYC import ──────────────────────────────────────────────────────────────
+kyc:
+  # In a hackathon demo the national tax identifier may be submitted masked.
+  # Set to true to require a full, unmasked identifier (production behaviour).
+  require_unmasked_tax_id: false
+  masked_tax_id_pattern: "^[X*]{4,}[0-9]{4}$"
+  providers:
+    kite:
+      label: "Kite by Zerodha"
+      category: "Discount broker"
+      auth: "OAuth 2.0 + API key"
+      scopes:
+        - "read:profile"
+        - "read:holdings"
+        - "read:mf_holdings"
+      notes: "Most complete: returns PAN, DOB and a full demat holding breakdown."
+    zerodha_console:
+      label: "Zerodha Console"
+      category: "Discount broker (web)"
+      auth: "Session cookie / API key"
+      scopes:
+        - "read:profile"
+        - "read:holdings"
+        - "read:funds"
+      notes: "Returns PAN, DOB, employment type and available margin."
+    groww:
+      label: "Groww"
+      category: "Discount broker"
+      auth: "OAuth 2.0"
+      scopes:
+        - "read:profile"
+        - "read:investments"
+      notes: "Returns name, DOB and mutual-fund / equity portfolio split."
+    cred:
+      label: "Cred"
+      category: "Wealth platform"
+      auth: "OAuth 2.0"
+      scopes:
+        - "read:profile"
+        - "read:networth"
+      notes: "Best source for liquid net worth and source-of-funds evidence."

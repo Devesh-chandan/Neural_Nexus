@@ -18,6 +18,61 @@ CREATE TABLE IF NOT EXISTS cases (
     latest_recommendation_id TEXT
 );
 
+-- One row per Relationship Manager onboarding onto the platform.
+-- Institution + branch_code scope the RM to one tenant.
+CREATE TABLE IF NOT EXISTS relationship_managers (
+    rm_id TEXT PRIMARY KEY,
+    legal_name TEXT NOT NULL,
+    corporate_email TEXT NOT NULL,
+    email_domain TEXT NOT NULL,
+    employee_id TEXT NOT NULL,
+    regulatory_registration_number TEXT NOT NULL,
+    operating_jurisdiction TEXT NOT NULL,
+    institution TEXT NOT NULL,
+    branch_code TEXT NOT NULL,
+    department TEXT,
+    access_tier TEXT NOT NULL,
+    authorised_product_types_json TEXT NOT NULL,
+    password_hash TEXT,
+    created_at TEXT NOT NULL
+);
+
+-- Client portal accounts: one row per registered client (linked to cases)
+CREATE TABLE IF NOT EXISTS client_accounts (
+    account_id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL,
+    client_name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES cases (case_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_client_accounts_email ON client_accounts (email);
+
+CREATE INDEX IF NOT EXISTS idx_rm_tenant
+    ON relationship_managers (institution, branch_code);
+
+-- Audit of RM registrations, so an account cannot be silently created.
+CREATE TABLE IF NOT EXISTS rm_registration_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rm_id TEXT NOT NULL,
+    institution TEXT NOT NULL,
+    access_tier TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+-- Explicit finalisation decisions taken by an RM on a run (RBAC enforcement).
+CREATE TABLE IF NOT EXISTS run_finalisations (
+    run_id TEXT NOT NULL,
+    rm_id TEXT NOT NULL,
+    allowed INTEGER NOT NULL,
+    access_tier TEXT NOT NULL,
+    reason TEXT,
+    finalised_at TEXT NOT NULL,
+    PRIMARY KEY (run_id)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     run_id TEXT PRIMARY KEY,
     case_id TEXT,
@@ -68,4 +123,11 @@ def init_db() -> None:
     conn = get_connection()
     with conn:
         conn.executescript(_SCHEMA)
+        # Live migrations: add columns that may not exist in older DBs
+        try:
+            conn.execute(
+                "ALTER TABLE relationship_managers ADD COLUMN password_hash TEXT"
+            )
+        except Exception:
+            pass  # Column already exists
     conn.close()

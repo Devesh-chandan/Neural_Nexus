@@ -60,10 +60,14 @@ from app.api import routes_cases         # Phase 7
 from app.api import routes_audit         # Phase 7
 from app.api import routes_explain       # Phase 6
 from app.api import routes_recommend     # Phase 5 (stubs)
+from app.api import routes_registration  # KYC + RM onboarding
+from app.api import routes_auth          # Authentication
 
+app.include_router(routes_auth.router, prefix="/api")
 app.include_router(routes_market.router, prefix="/api")
 app.include_router(routes_analyze.router, prefix="/api")
 app.include_router(routes_cases.router, prefix="/api")
 app.include_router(routes_audit.router, prefix="/api")
 app.include_router(routes_explain.router, prefix="/api")
 app.include_router(routes_recommend.router, prefix="/api")
+app.include_router(routes_registration.router, prefix="/api")

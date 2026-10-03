@@ -35,6 +35,9 @@ class SummaryFlags(BaseModel):
     concentration: RuleStatus
     appetite: RuleStatus
     complexity: RuleStatus
+    life_stage: RuleStatus = "GREEN"
+    affordability: RuleStatus = "GREEN"
+    kyc_aml: RuleStatus = "GREEN"
 
 
 class SuitabilityResult(BaseModel):
