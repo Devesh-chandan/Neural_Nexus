@@ -1,18 +1,12 @@
-// Auth API calls.
 import api from './client';
+import { requireSupabase } from '../lib/supabase';
 
-export interface RMLoginPayload {
-  corporate_email: string;
-  employee_id: string;
-}
-
-export interface ClientLoginPayload {
+export interface LoginPayload {
   email: string;
   password: string;
 }
 
 export interface AuthUser {
-  // RM fields
   rm_id?: string;
   legal_name?: string;
   corporate_email?: string;
@@ -24,12 +18,22 @@ export interface AuthUser {
   operating_jurisdiction?: string;
   authorised_product_types?: string[];
   rbac?: Record<string, unknown>;
-  // Client fields
-  account_id?: string;
   case_id?: string;
   client_name?: string;
   email?: string;
   profile?: Record<string, unknown>;
+  date_of_birth?: string;
+  employment_status?: string;
+  national_tax_id?: string | null;
+  liquid_net_worth?: number;
+  annual_income?: number;
+  source_of_funds?: string | null;
+  previous_investment_exposure_pct?: number;
+  risk_appetite?: string;
+  investment_horizon_years?: number;
+  loss_tolerance_pct?: number;
+  current_portfolio_concentration_pct?: number;
+  experience?: string;
 }
 
 export interface LoginResponse {
@@ -43,20 +47,29 @@ export interface MeResponse {
   user: AuthUser;
 }
 
-export async function loginRM(payload: RMLoginPayload): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>('/auth/rm/login', payload);
-  return data;
+async function signIn(
+  payload: LoginPayload,
+  expectedRole: LoginResponse['role']
+): Promise<LoginResponse> {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.signInWithPassword(payload);
+  if (error) throw error;
+  if (!data.session) throw new Error('Supabase did not return an authenticated session.');
+
+  const verified = await getMe(data.session.access_token);
+  if (verified.role !== expectedRole) {
+    await client.auth.signOut();
+    throw new Error(`This account is registered for the ${verified.role} portal.`);
+  }
+  return { token: data.session.access_token, ...verified };
 }
 
-export async function loginClient(payload: ClientLoginPayload): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>('/auth/client/login', payload);
-  return data;
-}
+export const loginRM = (payload: LoginPayload) => signIn(payload, 'rm');
+export const loginClient = (payload: LoginPayload) => signIn(payload, 'client');
 
-export async function logout(token: string): Promise<void> {
-  await api.post('/auth/logout', {}, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export async function logout(): Promise<void> {
+  const { error } = await requireSupabase().auth.signOut();
+  if (error) throw error;
 }
 
 export async function getMe(token: string): Promise<MeResponse> {

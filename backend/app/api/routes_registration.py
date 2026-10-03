@@ -23,11 +23,16 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.core.config import get_registration_config
 from app.core.errors import AppError
+from app.core.supabase import (
+    create_auth_user,
+    delete_auth_user,
+    update_auth_profile,
+)
 from app.core.rbac import (
     PERM_FINALISE_CONFIGURATION,
     permissions_for_tier,
@@ -53,11 +58,11 @@ from app.schemas.registration import (
     RMSRegistration,
     RMSRegistrationResponse,
 )
-from app.store.cases import create_case, get_case
+from app.store.cases import create_case, delete_case, get_case
 from app.store.db import init_db
-from app.store.auth import create_client_account, get_client_account_by_email
 from app.store.rms import (
     find_rm_by_employee_id,
+    delete_rm_registration,
     get_finalisation,
     get_rm,
     list_all_rms,
@@ -77,10 +82,8 @@ KYC_DISCLAIMER = (
 )
 
 RM_DISCLAIMER = (
-    "Prototype RM onboarding. No authentication is performed: an RM record is "
-    "created from the submitted form and the returned rm_id is the only credential. "
-    "In production this would be driven by SSO plus an enterprise directory, and the "
-    "regulatory registration number verified against the regulator's register."
+    "Supabase email/password authentication is enabled. This prototype does not "
+    "verify the regulatory registration number against the regulator's register."
 )
 
 
@@ -153,30 +156,49 @@ async def register_client(req: ClientRegistrationRequest) -> ClientRegistrationR
     except Exception as exc:  # pragma: no cover - defensive
         raise AppError(422, "VALIDATION_ERROR", f"Could not build profile: {exc}")
 
-    case_id = create_case(
-        profile.model_dump(mode="json"),
-        profile.client_name,
-    )
-
-    # Create portal login account if email + password were provided
+    # Portal authentication is provisioned in Supabase; passwords are never stored in SQLite.
     portal_account_id: Optional[str] = None
-    portal_account_error: Optional[str] = None
+    if bool(req.email) != bool(req.password):
+        raise AppError(422, "CREDENTIALS_REQUIRED", "Provide both an account email and password.")
     if req.email and req.password:
-        email_lower = req.email.strip().lower()
-        # Check for duplicate email
-        existing_account = get_client_account_by_email(email_lower)
-        if existing_account:
-            portal_account_error = f"Email '{email_lower}' is already registered. Please log in instead."
-        else:
-            try:
-                portal_account_id = create_client_account(
-                    case_id=case_id,
-                    client_name=profile.client_name,
-                    email=email_lower,
-                    password=req.password,
-                )
-            except Exception as exc:
-                portal_account_error = f"Could not create portal account: {exc}"
+        portal_account_id = create_auth_user(
+            email=req.email,
+            password=req.password,
+            user_type="client",
+            profile={
+                "legal_name": profile.client_name,
+                "date_of_birth": payload.identity.date_of_birth.isoformat(),
+                "employment_status": payload.identity.employment_status,
+                "national_tax_id": payload.identity.national_tax_id,
+                "liquid_net_worth": payload.financials.liquid_net_worth,
+                "annual_income": payload.financials.annual_income,
+                "source_of_funds": payload.financials.source_of_funds,
+                "previous_investment_exposure_pct": payload.financials.previous_investment_exposure_pct,
+                "risk_appetite": payload.suitability.risk_appetite,
+                "investment_horizon_years": payload.suitability.investment_horizon_years,
+                "loss_tolerance_pct": payload.suitability.loss_tolerance_pct,
+                "current_portfolio_concentration_pct": payload.suitability.current_portfolio_concentration_pct,
+                "experience": payload.suitability.experience,
+            },
+        )
+
+    try:
+        case_id = create_case(
+            profile.model_dump(mode="json"),
+            profile.client_name,
+            owner_user_id=portal_account_id,
+        )
+    except Exception:
+        if portal_account_id:
+            delete_auth_user(portal_account_id)
+        raise
+    if portal_account_id:
+        try:
+            update_auth_profile(portal_account_id, {"case_id": case_id})
+        except Exception:
+            delete_case(case_id)
+            delete_auth_user(portal_account_id)
+            raise
 
     flags = kyc_flags(
         payload.identity.national_tax_id,
@@ -193,16 +215,19 @@ async def register_client(req: ClientRegistrationRequest) -> ClientRegistrationR
         age_years=profile.age_years or 0,
         profile=profile,
         portal_account_id=portal_account_id,
-        portal_account_error=portal_account_error,
+        portal_account_error=None,
     )
 
 
 @router.get("/registration/client/{case_id}")
-async def get_registered_client(case_id: str) -> Dict[str, Any]:
+async def get_registered_client(case_id: str, request: Request) -> Dict[str, Any]:
     """Load a registered client's profile for a returning session."""
     row = get_case(case_id)
     if row is None:
         raise AppError(404, "CASE_NOT_FOUND", f"Case {case_id} not found.")
+    user = request.state.user
+    if user.get("user_type") != "rm" and row.get("owner_user_id") != user.get("id"):
+        raise AppError(404, "CASE_NOT_FOUND", "Case not found.")
     return {
         "case_id": row["case_id"],
         "client_name": row["client_name"],
@@ -308,6 +333,9 @@ async def register_rm_route(req: RMSRegistration) -> RMSRegistrationResponse:
             f"{req.access.institution} (rm_id {existing['rm_id']}).",
         )
 
+    if req.password is None:
+        raise AppError(422, "PASSWORD_REQUIRED", "Set a password to secure your RM account.")
+
     response = register_rm_record(req)
 
     # Authorised products: honour what the RM asked for, clamped to the matrix.
@@ -326,20 +354,43 @@ async def register_rm_route(req: RMSRegistration) -> RMSRegistrationResponse:
             authorised,
         )
 
-    rm_id = register_rm(
-        legal_name=response.legal_name,
-        corporate_email=response.corporate_email,
-        email_domain=response.email_domain,
-        employee_id=response.employee_id,
-        regulatory_registration_number=response.regulatory_registration_number,
-        operating_jurisdiction=response.operating_jurisdiction,
-        institution=response.institution,
-        branch_code=response.branch_code,
-        department=response.department,
-        access_tier=response.access_tier,
-        authorised_product_types=authorised,
-        payload=req.model_dump(mode="json"),
+    auth_user_id = create_auth_user(
+        email=response.corporate_email,
+        password=req.password.get_secret_value(),
+        user_type="rm",
+        profile={
+            "legal_name": response.legal_name,
+            "employee_id": response.employee_id,
+            "institution": response.institution,
+            "branch_code": response.branch_code,
+            "department": response.department,
+            "access_tier": response.access_tier,
+            "operating_jurisdiction": response.operating_jurisdiction,
+            "authorised_product_types": authorised,
+        },
     )
+    rm_id: Optional[str] = None
+    try:
+        rm_id = register_rm(
+            legal_name=response.legal_name,
+            corporate_email=response.corporate_email,
+            email_domain=response.email_domain,
+            employee_id=response.employee_id,
+            regulatory_registration_number=response.regulatory_registration_number,
+            operating_jurisdiction=response.operating_jurisdiction,
+            institution=response.institution,
+            branch_code=response.branch_code,
+            department=response.department,
+            access_tier=response.access_tier,
+            authorised_product_types=authorised,
+            payload=req.model_dump(mode="json", exclude={"password"}),
+        )
+        update_auth_profile(auth_user_id, {"rm_id": rm_id})
+    except Exception:
+        if rm_id is not None:
+            delete_rm_registration(rm_id)
+        delete_auth_user(auth_user_id)
+        raise
 
     return response.model_copy(
         update={

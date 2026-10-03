@@ -208,6 +208,7 @@ export interface RMSRegistrationPayload {
   identity: RMSIdentity;
   compliance: RMSCompliance;
   access: RMSAccess;
+  password: string;
 }
 
 export interface RbacSummary {

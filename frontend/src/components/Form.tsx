@@ -130,6 +130,7 @@ interface TextFieldProps {
   type?: 'text' | 'email' | 'date' | 'password';
   autoComplete?: string;
   maxLength?: number;
+  minLength?: number;
   mono?: boolean;
 }
 
@@ -145,6 +146,7 @@ export const TextField: React.FC<TextFieldProps> = ({
   type = 'text',
   autoComplete,
   maxLength,
+  minLength,
   mono,
 }) => (
   <div className="form-group">
@@ -161,6 +163,7 @@ export const TextField: React.FC<TextFieldProps> = ({
       placeholder={placeholder}
       autoComplete={autoComplete}
       maxLength={maxLength}
+      minLength={minLength}
       required={required}
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}

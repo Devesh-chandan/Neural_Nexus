@@ -1,11 +1,10 @@
 """
-SQLite database initialisation and connection helper.
-Uses CREATE TABLE IF NOT EXISTS for simple migrations.
+PostgreSQL database initialisation and connection helper.
 """
 from __future__ import annotations
 
-import sqlite3
-from pathlib import Path
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from app.core.config import get_settings
 
@@ -15,11 +14,10 @@ CREATE TABLE IF NOT EXISTS cases (
     client_name TEXT NOT NULL,
     profile_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    latest_recommendation_id TEXT
+    latest_recommendation_id TEXT,
+    owner_user_id TEXT
 );
 
--- One row per Relationship Manager onboarding onto the platform.
--- Institution + branch_code scope the RM to one tenant.
 CREATE TABLE IF NOT EXISTS relationship_managers (
     rm_id TEXT PRIMARY KEY,
     legal_name TEXT NOT NULL,
@@ -37,7 +35,6 @@ CREATE TABLE IF NOT EXISTS relationship_managers (
     created_at TEXT NOT NULL
 );
 
--- Client portal accounts: one row per registered client (linked to cases)
 CREATE TABLE IF NOT EXISTS client_accounts (
     account_id TEXT PRIMARY KEY,
     case_id TEXT NOT NULL,
@@ -52,9 +49,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_client_accounts_email ON client_accounts (
 CREATE INDEX IF NOT EXISTS idx_rm_tenant
     ON relationship_managers (institution, branch_code);
 
--- Audit of RM registrations, so an account cannot be silently created.
 CREATE TABLE IF NOT EXISTS rm_registration_audit (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     rm_id TEXT NOT NULL,
     institution TEXT NOT NULL,
     access_tier TEXT NOT NULL,
@@ -62,7 +58,6 @@ CREATE TABLE IF NOT EXISTS rm_registration_audit (
     created_at TEXT NOT NULL
 );
 
--- Explicit finalisation decisions taken by an RM on a run (RBAC enforcement).
 CREATE TABLE IF NOT EXISTS run_finalisations (
     run_id TEXT NOT NULL,
     rm_id TEXT NOT NULL,
@@ -87,7 +82,7 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     run_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
     payload_json TEXT NOT NULL,
@@ -103,31 +98,55 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 """
 
+class PostgresConnection:
+    def __init__(self, dsn):
+        self._conn = psycopg2.connect(dsn, cursor_factory=RealDictCursor)
 
-def _db_path() -> Path:
+    def execute(self, sql, params=None):
+        cur = self._conn.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self._conn.commit()
+        else:
+            self._conn.rollback()
+
+
+def get_connection() -> PostgresConnection:
     settings = get_settings()
-    p = Path(settings.db_path)
-    if not p.is_absolute():
-        p = Path(__file__).resolve().parent.parent.parent / settings.db_path
-    p.parent.mkdir(parents=True, exist_ok=True)
-    return p
-
-
-def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_db_path()), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if not settings.database_url:
+        raise RuntimeError("DATABASE_URL is not set")
+    return PostgresConnection(settings.database_url)
 
 
 def init_db() -> None:
     conn = get_connection()
     with conn:
-        conn.executescript(_SCHEMA)
-        # Live migrations: add columns that may not exist in older DBs
+        conn.execute(_SCHEMA)
+    # Commit table creations before attempting migrations
+    conn.commit()
+    
+    with conn:
         try:
-            conn.execute(
-                "ALTER TABLE relationship_managers ADD COLUMN password_hash TEXT"
-            )
+            conn.execute("ALTER TABLE relationship_managers ADD COLUMN password_hash TEXT")
         except Exception:
-            pass  # Column already exists
+            conn._conn.rollback()
+            
+    with conn:
+        try:
+            conn.execute("ALTER TABLE cases ADD COLUMN owner_user_id TEXT")
+        except Exception:
+            conn._conn.rollback()
+    
     conn.close()

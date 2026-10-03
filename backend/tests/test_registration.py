@@ -131,6 +131,14 @@ class TestKYCImport:
 
 
 class TestRMRegistration:
+    @pytest.fixture(autouse=True)
+    def mock_supabase_admin(self, monkeypatch):
+        from app.api import routes_registration
+
+        monkeypatch.setattr(routes_registration, "create_auth_user", lambda **_: "test-auth-user")
+        monkeypatch.setattr(routes_registration, "update_auth_profile", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(routes_registration, "delete_auth_user", lambda *_args, **_kwargs: None)
+
     def test_validate_corporate_email_accepts_bank_domain(self):
         res = client.post("/api/registration/validate/email", json={"email": "priya@hdfcbank.com"})
         assert res.status_code == 200
@@ -164,6 +172,7 @@ class TestRMRegistration:
                 "department": "Private Banking",
                 "access_tier": "junior_rm",
             },
+            "password": "DemoRmPassword123!",
         }
         res = client.post("/api/registration/rm", json=payload)
         assert res.status_code == 200, res.text
@@ -191,6 +200,7 @@ class TestRMRegistration:
                 "department": "Structured Products",
                 "access_tier": "senior_advisor",
             },
+            "password": "DemoRmPassword123!",
         }
         res = client.post("/api/registration/rm", json=payload)
         assert res.status_code == 200, res.text
@@ -218,6 +228,7 @@ class TestRMRegistration:
                 "branch_code": "BLR-01",
                 "access_tier": "junior_rm",
             },
+            "password": "DemoRmPassword123!",
         }
         res1 = client.post("/api/registration/rm", json=payload)
         assert res1.status_code == 200

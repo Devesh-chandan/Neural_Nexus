@@ -24,6 +24,17 @@ def generate_rm_id() -> str:
     return f"RM{uuid.uuid4().hex[:10].upper()}"
 
 
+def delete_rm_registration(rm_id: str) -> None:
+    """Remove an RM row and its audit entry when external account provisioning fails."""
+    conn = get_connection()
+    try:
+        with conn:
+            conn.execute("DELETE FROM rm_registration_audit WHERE rm_id = %s", (rm_id,))
+            conn.execute("DELETE FROM relationship_managers WHERE rm_id = %s", (rm_id,))
+    finally:
+        conn.close()
+
+
 def register_rm(
     *,
     legal_name: str,
@@ -51,7 +62,7 @@ def register_rm(
                     regulatory_registration_number, operating_jurisdiction,
                     institution, branch_code, department, access_tier,
                     authorised_product_types_json, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (
                     rm_id,
                     legal_name,
@@ -71,7 +82,7 @@ def register_rm(
             conn.execute(
                 """INSERT INTO rm_registration_audit
                    (rm_id, institution, access_tier, payload_json, created_at)
-                   VALUES (?, ?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s, %s)""",
                 (rm_id, institution, access_tier, json.dumps(payload), now),
             )
     finally:
@@ -82,7 +93,7 @@ def register_rm(
 def get_rm(rm_id: str) -> Optional[Dict[str, Any]]:
     conn = get_connection()
     row = conn.execute(
-        "SELECT * FROM relationship_managers WHERE rm_id = ?", (rm_id,)
+        "SELECT * FROM relationship_managers WHERE rm_id = %s", (rm_id,)
     ).fetchone()
     conn.close()
     if row is None:
@@ -101,7 +112,7 @@ def find_rm_by_employee_id(
     conn = get_connection()
     row = conn.execute(
         """SELECT * FROM relationship_managers
-           WHERE institution = ? AND employee_id = ?""",
+           WHERE institution = %s AND employee_id = %s""",
         (institution, employee_id),
     ).fetchone()
     conn.close()
@@ -121,7 +132,7 @@ def list_branch_rms(institution: str, branch_code: str) -> List[Dict[str, Any]]:
         """SELECT rm_id, legal_name, employee_id, access_tier, department,
                   operating_jurisdiction, created_at
            FROM relationship_managers
-           WHERE institution = ? AND branch_code = ?
+           WHERE institution = %s AND branch_code = %s
            ORDER BY created_at ASC""",
         (institution, branch_code),
     ).fetchall()
@@ -138,9 +149,9 @@ def record_finalisation(
     try:
         with conn:
             conn.execute(
-                """INSERT OR REPLACE INTO run_finalisations
+                """INSERT INTO run_finalisations (run_id, rm_id, allowed, access_tier, reason, finalised_at) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (run_id) DO UPDATE SET rm_id=EXCLUDED.rm_id, allowed=EXCLUDED.allowed, access_tier=EXCLUDED.access_tier, reason=EXCLUDED.reason, finalised_at=EXCLUDED.finalised_at --
                    (run_id, rm_id, allowed, access_tier, reason, finalised_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
                 (run_id, rm_id, 1 if allowed else 0, access_tier, reason, now),
             )
     finally:
@@ -151,7 +162,7 @@ def record_finalisation(
 def get_finalisation(run_id: str) -> Optional[Dict[str, Any]]:
     conn = get_connection()
     row = conn.execute(
-        "SELECT * FROM run_finalisations WHERE run_id = ?", (run_id,)
+        "SELECT * FROM run_finalisations WHERE run_id = %s", (run_id,)
     ).fetchone()
     conn.close()
     return dict(row) if row is not None else None
@@ -171,4 +182,3 @@ def list_all_rms() -> List[Dict[str, Any]]:
         )
         res.append(record)
     return res
-

@@ -42,6 +42,7 @@ import {
   TextField,
 } from '../components/Form';
 import { Stepper, WizardNav, type WizardStep } from '../components/Wizard';
+import { useAuth } from '../hooks/useAuth';
 
 // ── Steps ───────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,7 @@ function validateSuitability(f: FormState): StepErrors {
 
 const ClientRegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { loginAsClient } = useAuth();
 
   const [step, setStep] = useState(0);
   const [maxVisited, setMaxVisited] = useState(0);
@@ -363,6 +365,9 @@ const ClientRegisterPage: React.FC = () => {
     Object.keys(validateIdentity(form)).length === 0 &&
     Object.keys(validateFinancials(form)).length === 0 &&
     Object.keys(validateSuitability(form)).length === 0 &&
+    !!form.portal_email.trim() &&
+    form.portal_password.length >= 12 &&
+    form.portal_password === form.portal_password_confirm &&
     consentKyc &&
     (mode !== 'broker' || consentSof);
 
@@ -374,6 +379,7 @@ const ClientRegisterPage: React.FC = () => {
       setRegistered(res);
       setMaxVisited((m) => Math.max(m, 4));
       goTo(4);
+      await loginAsClient(form.portal_email.trim(), form.portal_password);
     } catch (err: unknown) {
       const e = err as { detail?: string };
       setError(e?.detail ?? 'Registration failed. Please review your answers.');
@@ -852,7 +858,7 @@ const ClientRegisterPage: React.FC = () => {
 
                   <SectionCard
                     title="Create portal login"
-                    subtitle="Set up your email and password to log into the client portal later. Optional — you can skip this."
+                    subtitle="Create a Supabase-authenticated account to access the client portal. All fields are required."
                   >
                     <div className="grid-2">
                       <div className="form-group">
@@ -868,6 +874,7 @@ const ClientRegisterPage: React.FC = () => {
                           value={form.portal_email}
                           onChange={(e) => set('portal_email', e.target.value)}
                           autoComplete="email"
+                          required
                         />
                         <div style={{ fontSize: 11, color: 'var(--stone)', marginTop: 4 }}>Used to log into your client portal</div>
                       </div>
@@ -882,11 +889,11 @@ const ClientRegisterPage: React.FC = () => {
                             id="reg-portal-password"
                             type={showPortalPassword ? 'text' : 'password'}
                             className="form-input"
-                            placeholder="Min. 8 characters"
+                            placeholder="At least 12 characters"
                             value={form.portal_password}
                             onChange={(e) => set('portal_password', e.target.value)}
                             autoComplete="new-password"
-                            minLength={8}
+                            minLength={12}
                             style={{ paddingRight: 40 }}
                           />
                           <button
@@ -898,6 +905,11 @@ const ClientRegisterPage: React.FC = () => {
                             {showPortalPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                           </button>
                         </div>
+                        {form.portal_password.length > 0 && form.portal_password.length < 12 && (
+                          <div style={{ fontSize: 11, color: 'var(--accent-danger)', marginTop: 4 }}>
+                            Use at least 12 characters.
+                          </div>
+                        )}
                       </div>
 
                       <div className="form-group">
@@ -914,6 +926,7 @@ const ClientRegisterPage: React.FC = () => {
                             value={form.portal_password_confirm}
                             onChange={(e) => set('portal_password_confirm', e.target.value)}
                             autoComplete="new-password"
+                            required
                             style={{ paddingRight: 40 }}
                           />
                           <button
@@ -925,7 +938,7 @@ const ClientRegisterPage: React.FC = () => {
                             {showPortalPasswordConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                           </button>
                         </div>
-                        {form.portal_password && form.portal_password_confirm && form.portal_password !== form.portal_password_confirm && (
+                        {form.portal_password !== form.portal_password_confirm && (
                           <div style={{ fontSize: 11, color: 'var(--accent-danger)', marginTop: 4 }}>Passwords do not match</div>
                         )}
                       </div>
@@ -948,6 +961,14 @@ const ClientRegisterPage: React.FC = () => {
                         <Alert variant="warning" className="mb-6">
                           Some answers are incomplete or invalid. Go back and fix the highlighted
                           fields before submitting.
+                        </Alert>
+                      ) : !form.portal_email.trim() || !form.portal_password ? (
+                        <Alert variant="warning" className="mb-6">
+                          Enter an email address and create a password of at least 12 characters.
+                        </Alert>
+                      ) : form.portal_password !== form.portal_password_confirm ? (
+                        <Alert variant="warning" className="mb-6">
+                          Your passwords do not match.
                         </Alert>
                       ) : canSubmit ? null : (
                         <Alert variant="warning" className="mb-6">

@@ -25,6 +25,7 @@ import {
   TextField,
 } from '../components/Form';
 import { Stepper, WizardNav, type WizardStep } from '../components/Wizard';
+import { useAuth } from '../hooks/useAuth';
 
 // ── Steps ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ interface RMFormState {
   legal_name: string;
   corporate_email: string;
   employee_id: string;
+  password: string;
   regulatory_registration_number: string;
   operating_jurisdiction: Jurisdiction;
   institution: string;
@@ -54,6 +56,7 @@ const INITIAL_FORM: RMFormState = {
   legal_name: '',
   corporate_email: '',
   employee_id: '',
+  password: '',
   regulatory_registration_number: '',
   operating_jurisdiction: 'IN',
   institution: '',
@@ -142,6 +145,8 @@ function validateIdentity(f: RMFormState): StepErrors {
     e.corporate_email = 'Enter a valid email address.';
   if (f.employee_id.trim().length < 2)
     e.employee_id = 'Employee id is required and must be unique in your institution.';
+  if (f.password.length < 12)
+    e.password = 'Use a password with at least 12 characters.';
   return e;
 }
 
@@ -163,6 +168,7 @@ function validateAccess(f: RMFormState): StepErrors {
 
 const RMRegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { loginAsRM } = useAuth();
 
   const [step, setStep] = useState(0);
   const [maxVisited, setMaxVisited] = useState(0);
@@ -315,6 +321,7 @@ const RMRegisterPage: React.FC = () => {
       department: form.department.trim() || null,
       access_tier: form.access_tier,
     },
+    password: form.password,
   };
 
   const handleSubmit = async () => {
@@ -325,6 +332,7 @@ const RMRegisterPage: React.FC = () => {
       setRegistered(res);
       setMaxVisited((m) => Math.max(m, 3));
       goTo(3);
+      await loginAsRM(form.corporate_email.trim().toLowerCase(), form.password);
     } catch (err: unknown) {
       const e = err as { detail?: string };
       setError(e?.detail ?? 'Registration failed. Please review your answers.');
@@ -459,6 +467,22 @@ const RMRegisterPage: React.FC = () => {
                           </InlineValidation>
                         </div>
                       )}
+                    </div>
+
+                    <div className="mt-6">
+                      <TextField
+                        id="rmreg-password"
+                        label="Account password"
+                        type="password"
+                        value={form.password}
+                        onChange={(value) => set('password', value)}
+                        placeholder="At least 12 characters"
+                        hint="Used with your institutional email to sign in."
+                        error={identityErrors.password}
+                        required
+                        autoComplete="new-password"
+                        minLength={12}
+                      />
                     </div>
                   </SectionCard>
                 </div>
@@ -739,7 +763,7 @@ const RMRegisterPage: React.FC = () => {
                 the backend and denied attempts are written to the audit log.
               </Alert>
 
-              <Disclaimer text="Prototype onboarding. No authentication is performed and no regulator register is queried. Do not enter a real regulatory registration number." />
+              <Disclaimer text="Supabase email/password authentication is enabled. The regulator register is not queried; do not enter a real regulatory registration number." />
             </aside>
           </div>
         </div>

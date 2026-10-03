@@ -24,7 +24,11 @@ class Settings:
     llm_provider: str = os.getenv("LLM_PROVIDER", "none").lower()
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_model: str = os.getenv("LLM_MODEL", "")
+    database_url: str = os.getenv("DATABASE_URL", "")
     db_path: str = os.getenv("DB_PATH", "data/nexus.db")
+    supabase_url: str = os.getenv("SUPABASE_URL", "").rstrip("/")
+    supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
+    supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     cors_origins: list[str] = [
         o.strip()
         for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

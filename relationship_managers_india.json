@@ -1,0 +1,1317 @@
+{
+  "institutions": [
+    {
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "institution_type": "SCHEDULED_COMMERCIAL_BANK",
+      "allowed_email_domains": [
+        "aravallibank.example"
+      ],
+      "entity_registration": {
+        "type": "AMFI_ARN",
+        "number": "ARN-947213"
+      }
+    },
+    {
+      "institution_id": "TEN-SWA",
+      "institution_name": "Sahyadri Wealth Advisors Pvt. Ltd.",
+      "institution_type": "SEBI_REGISTERED_INVESTMENT_ADVISER",
+      "allowed_email_domains": [
+        "sahyadriwealth.example"
+      ],
+      "entity_registration": {
+        "type": "SEBI_RIA",
+        "number": "INA912058347"
+      }
+    },
+    {
+      "institution_id": "TEN-KCS",
+      "institution_name": "Kaveri Capital Securities Ltd.",
+      "institution_type": "STOCK_BROKER_AND_MF_DISTRIBUTOR",
+      "allowed_email_domains": [
+        "kavericapital.example"
+      ],
+      "entity_registration": {
+        "type": "AMFI_ARN",
+        "number": "ARN-936580"
+      }
+    }
+  ],
+  "jurisdictions": [
+    {
+      "code": "IN-ONSHORE",
+      "name": "India (onshore)",
+      "regulators": [
+        "SEBI",
+        "RBI",
+        "AMFI"
+      ],
+      "currency": "INR",
+      "product_rules_demo": {
+        "ELN": {
+          "status": "ALLOWED",
+          "note": "Equity-linked notes/debentures in INR"
+        },
+        "CPN": {
+          "status": "ALLOWED",
+          "note": "Principal-protected market-linked debentures in INR"
+        },
+        "DCD": {
+          "status": "RESTRICTED",
+          "note": "FX-linked; resident individuals generally need an underlying FX exposure under RBI rules"
+        }
+      },
+      "client_residency_allowed": [
+        "RESIDENT",
+        "NRI",
+        "RNOR"
+      ]
+    },
+    {
+      "code": "IN-GIFT-IFSC",
+      "name": "GIFT City International Financial Services Centre",
+      "regulators": [
+        "IFSCA"
+      ],
+      "currency": "USD",
+      "product_rules_demo": {
+        "ELN": {
+          "status": "ALLOWED",
+          "note": "Foreign-currency notes for eligible investors"
+        },
+        "CPN": {
+          "status": "ALLOWED",
+          "note": "Foreign-currency capital-protected notes"
+        },
+        "DCD": {
+          "status": "ALLOWED",
+          "note": "Foreign-currency dual-currency deposits"
+        }
+      },
+      "client_residency_allowed": [
+        "NRI",
+        "RESIDENT_VIA_LRS"
+      ]
+    }
+  ],
+  "jurisdiction_note": "product_rules_demo is demo configuration for the RM jurisdiction check, not legal advice; confirm the rules with compliance before relying on them.",
+  "blocked_public_email_domains": [
+    "gmail.com",
+    "yahoo.com",
+    "yahoo.co.in",
+    "outlook.com",
+    "hotmail.com",
+    "rediffmail.com",
+    "icloud.com",
+    "proton.me"
+  ],
+  "tier_permissions": {
+    "JUNIOR_RM": {
+      "view_assigned_clients": true,
+      "configure_product": true,
+      "simulate_payoff": true,
+      "run_suitability": true,
+      "finalize_configuration": false,
+      "view_branch_audit": false
+    },
+    "SENIOR_ADVISOR": {
+      "view_assigned_clients": true,
+      "configure_product": true,
+      "simulate_payoff": true,
+      "run_suitability": true,
+      "finalize_configuration": true,
+      "view_branch_audit": false
+    },
+    "BRANCH_MANAGER": {
+      "view_assigned_clients": true,
+      "configure_product": true,
+      "simulate_payoff": true,
+      "run_suitability": true,
+      "finalize_configuration": true,
+      "view_branch_audit": true
+    }
+  },
+  "relationship_managers": [
+    {
+      "employee_id": "AVB-E10239",
+      "full_legal_name": "Pooja Nitin Gokhale",
+      "corporate_email": "pooja.gokhale@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "pooja.gokhale@aravallibank.example",
+        "demo_password": "EKn@k9o&4mRa",
+        "password_hash": "$pbkdf2-sha256$29000$uVcWjolKSXUk4KW0t5NPBg$Ps08ea3NaP0/t3jJLUNoZeKbghgJfE5Wd2eqUrPVwD0"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E991459",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2028-11-05"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2028-11-05"
+          }
+        ],
+        "valid_until": "2028-11-05",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-MUM-BKC-0101",
+      "branch_city": "Mumbai",
+      "department": "Private Banking",
+      "access_tier": "BRANCH_MANAGER",
+      "reports_to_employee_id": null,
+      "account_status": "ACTIVE",
+      "joined_on": "2017-01-03",
+      "created_at": "2017-01-03T20:23:23+05:30",
+      "_meta": {
+        "scenario": "Branch manager overseeing Mumbai private-banking RMs; can view branch audit trail",
+        "segments_served": [
+          "UHNI",
+          "HNI"
+        ],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": true
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10273",
+      "full_legal_name": "Bhavesh Darshan Sanghvi",
+      "corporate_email": "bhavesh.sanghvi@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "bhavesh.sanghvi@aravallibank.example",
+        "demo_password": "d19H&Y*yZ9%%",
+        "password_hash": "$pbkdf2-sha256$29000$4jrZ4h.gs3SseLbt9fz6iw$87nvX9jrxAw1cpF6gMghl8AnGQCFuDpimuRzeG2gQzc"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E976369",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2028-05-09"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2028-05-09"
+          }
+        ],
+        "valid_until": "2028-05-09",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-MUM-BKC-0101",
+      "branch_city": "Mumbai",
+      "department": "Private Banking",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2014-08-11",
+      "created_at": "2014-08-11T13:35:25+05:30",
+      "_meta": {
+        "scenario": "Senior private banker for UHNI / family-business clients",
+        "segments_served": [
+          "UHNI",
+          "HNI",
+          "FOUNDER"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10301",
+      "full_legal_name": "Sapna Tolani",
+      "corporate_email": "sapna.tolani@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "sapna.tolani@aravallibank.example",
+        "demo_password": "6a@#&0HI7@Uz",
+        "password_hash": "$pbkdf2-sha256$29000$sLfI9oNCc.z3Lvds17p68A$MelL2uuhAe5opb6G53KfSt9luTK3YlemFSus2QUH/MY"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E948584",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2027-09-24"
+          }
+        ],
+        "valid_until": "2027-09-24",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-MUM-BKC-0101",
+      "branch_city": "Mumbai",
+      "department": "Private Banking",
+      "access_tier": "JUNIOR_RM",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2021-09-17",
+      "created_at": "2021-09-17T10:41:17+05:30",
+      "_meta": {
+        "scenario": "Junior RM: can simulate and assess but cannot finalize",
+        "segments_served": [
+          "MASS_AFFLUENT",
+          "HNI",
+          "YOUNG",
+          "MSME"
+        ],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": false,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10313",
+      "full_legal_name": "Mandar Shrikant Gokhale",
+      "corporate_email": "mandar.gokhale@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "mandar.gokhale@aravallibank.example",
+        "demo_password": "tFfT&ok9pIzA",
+        "password_hash": "$pbkdf2-sha256$29000$FWqrKO8iyMjqlk6BaWPOJg$VTkwCTyZy7z5ffAJAMcj51oHlUzbuWJ6sCG9n4bH13s"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E922080",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2027-03-15"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2027-03-15"
+          }
+        ],
+        "valid_until": "2027-03-15",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-PUN-KGP-0214",
+      "branch_city": "Pune",
+      "department": "Wealth Management",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2022-01-29",
+      "created_at": "2022-01-29T17:51:12+05:30",
+      "_meta": {
+        "scenario": "Wealth RM for salaried, professional and retiree clients",
+        "segments_served": [
+          "MASS_AFFLUENT",
+          "HNI",
+          "RETIREE",
+          "PROFESSIONAL",
+          "MSME",
+          "YOUNG",
+          "RURAL"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10340",
+      "full_legal_name": "Sayali Kulkarni",
+      "corporate_email": "sayali.kulkarni@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "sayali.kulkarni@aravallibank.example",
+        "demo_password": "U8#@lP%50pPM",
+        "password_hash": "$pbkdf2-sha256$29000$dZk7rbURjGYIMqXrLAuliw$1HtEYn6S0RMp8kTposwhtnJ9D/x5AhBaGJBZGYx0ZuU"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E955484",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2026-08-31"
+          }
+        ],
+        "valid_until": "2026-08-31",
+        "verification_status": "EXPIRED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-PUN-KGP-0214",
+      "branch_city": "Pune",
+      "department": "Wealth Management",
+      "access_tier": "JUNIOR_RM",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2013-08-24",
+      "created_at": "2013-08-24T09:28:55+05:30",
+      "_meta": {
+        "scenario": "EUIN/NISM lapsed: can log in, finalize must be blocked until renewal",
+        "segments_served": [
+          "MASS_AFFLUENT",
+          "RETIREE",
+          "YOUNG"
+        ],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": false,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10373",
+      "full_legal_name": "Harish Bhat",
+      "corporate_email": "harish.bhat@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "harish.bhat@aravallibank.example",
+        "demo_password": "Qkg12#I!x8uX",
+        "password_hash": "$pbkdf2-sha256$29000$LVOEe3EehsuGy0bQGNk2Ow$nqxAPltyI32TocA8ifti23/jVGlh.e/xltgZjavgc3o"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E994626",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2027-07-11"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2027-07-11"
+          },
+          {
+            "code": "VIII",
+            "name": "NISM-Series-VIII: Equity Derivatives",
+            "valid_until": "2027-07-11"
+          }
+        ],
+        "valid_until": "2027-07-11",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-BLR-KRM-0322",
+      "branch_city": "Bengaluru",
+      "department": "Priority Banking",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2012-06-16",
+      "created_at": "2012-06-16T09:05:56+05:30",
+      "_meta": {
+        "scenario": "Priority banker for tech professionals and ESOP holders",
+        "segments_served": [
+          "YOUNG",
+          "MASS_AFFLUENT",
+          "HNI",
+          "FOUNDER",
+          "PROFESSIONAL",
+          "TRADER",
+          "UHNI"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10402",
+      "full_legal_name": "Revathi Sundaram",
+      "corporate_email": "revathi.sundaram@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "revathi.sundaram@aravallibank.example",
+        "demo_password": "BTB!FL!a5ouJ",
+        "password_hash": "$pbkdf2-sha256$29000$rw/CW7jNL6WhG4FQRpbWEA$Ibg7pYXXRyVh.KIvxnSeGyuJDq340s/F/43W9j5CHks"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": null,
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2028-09-09"
+          }
+        ],
+        "valid_until": null,
+        "verification_status": "PENDING_VERIFICATION"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-BLR-KRM-0322",
+      "branch_city": "Bengaluru",
+      "department": "Priority Banking",
+      "access_tier": "JUNIOR_RM",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "PENDING_VERIFICATION",
+      "joined_on": "2026-09-21",
+      "created_at": "2026-09-21T13:59:20+05:30",
+      "_meta": {
+        "scenario": "New joiner: registration under verification, no clients yet",
+        "segments_served": [],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": false,
+          "configure_product": false,
+          "simulate_payoff": false,
+          "run_suitability": false,
+          "finalize_configuration": false,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10405",
+      "full_legal_name": "Manpreet Singh Khanna",
+      "corporate_email": "manpreet.khanna@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "manpreet.khanna@aravallibank.example",
+        "demo_password": "pmc@aE0NN6OS",
+        "password_hash": "$pbkdf2-sha256$29000$r1/cgK757EBjSvLRWw68tw$tmE/Yy0k9XMAIc.rW.Qeoo/9NtghfOPKaxVK5vfJ03o"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E943691",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2029-05-04"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2029-05-04"
+          }
+        ],
+        "valid_until": "2029-05-04",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-DEL-CNP-0405",
+      "branch_city": "New Delhi",
+      "department": "Private Banking",
+      "access_tier": "BRANCH_MANAGER",
+      "reports_to_employee_id": null,
+      "account_status": "ACTIVE",
+      "joined_on": "2021-03-26",
+      "created_at": "2021-03-26T15:56:01+05:30",
+      "_meta": {
+        "scenario": "Branch manager, North India private banking",
+        "segments_served": [
+          "UHNI",
+          "HNI",
+          "SPECIAL",
+          "FOUNDER",
+          "MSME",
+          "RURAL"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": true
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10429",
+      "full_legal_name": "Kavita Dubey",
+      "corporate_email": "kavita.dubey@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "kavita.dubey@aravallibank.example",
+        "demo_password": "zpuyh$pcRo6J",
+        "password_hash": "$pbkdf2-sha256$29000$YmA9xmupOMYgLooHqbfvig$WvNYMjDT136wEpA1Yf7d4DRCVcCxrcIw4SDU9xMPQsc"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E926032",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2029-03-14"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2029-03-14"
+          },
+          {
+            "code": "VIII",
+            "name": "NISM-Series-VIII: Equity Derivatives",
+            "valid_until": "2029-03-14"
+          }
+        ],
+        "valid_until": "2029-03-14",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-DEL-CNP-0405",
+      "branch_city": "New Delhi",
+      "department": "Private Banking",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "AVB-E10405",
+      "account_status": "ACTIVE",
+      "joined_on": "2018-06-30",
+      "created_at": "2018-06-30T19:35:25+05:30",
+      "_meta": {
+        "scenario": "Senior RM, North India HNI and retiree book",
+        "segments_served": [
+          "HNI",
+          "RETIREE",
+          "MASS_AFFLUENT",
+          "SPECIAL",
+          "YOUNG",
+          "PROFESSIONAL",
+          "TRADER",
+          "MSME"
+        ],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10446",
+      "full_legal_name": "Rajesh Pillai",
+      "corporate_email": "rajesh.pillai@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "rajesh.pillai@aravallibank.example",
+        "demo_password": "l6Ow$p%RRreH",
+        "password_hash": "$pbkdf2-sha256$29000$7b7n32a1.VzzyjuP1EZX3A$Yy9F.QINRTbNzC5JTfcUkxPc1iAAwsl8cQgzbzE1/tA"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E946284",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2027-03-17"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2027-03-17"
+          }
+        ],
+        "valid_until": "2027-03-17",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-KOC-MGR-0517",
+      "branch_city": "Kochi",
+      "department": "NRI Services",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2012-07-10",
+      "created_at": "2012-07-10T12:23:22+05:30",
+      "_meta": {
+        "scenario": "NRI desk serving Gulf-based NRIs (NRE/NRO)",
+        "segments_served": [
+          "NRI_GULF"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10484",
+      "full_legal_name": "Indranil Dutta",
+      "corporate_email": "indranil.dutta@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "indranil.dutta@aravallibank.example",
+        "demo_password": "#S@&eaTt0j30",
+        "password_hash": "$pbkdf2-sha256$29000$/.cEiDfZ2bKVTpIL9GRhiQ$MJ9I3zFwwNiyz.1lqs4AEJu0CdEF3ARNOHYmsh0AKj0"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E998264",
+        "entity_registration_number": "ARN-947213",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2029-05-16"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2029-05-16"
+          }
+        ],
+        "valid_until": "2029-05-16",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-KOL-PKS-0612",
+      "branch_city": "Kolkata",
+      "department": "Wealth Management",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2022-08-19",
+      "created_at": "2022-08-19T17:51:41+05:30",
+      "_meta": {
+        "scenario": "Senior RM covering East India (WB, Odisha, Assam)",
+        "segments_served": [
+          "MASS_AFFLUENT",
+          "RETIREE",
+          "PROFESSIONAL",
+          "HNI",
+          "YOUNG",
+          "MSME",
+          "UHNI"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "AVB-E10511",
+      "full_legal_name": "Falguni Chirag Trivedi",
+      "corporate_email": "falguni.trivedi@aravallibank.example",
+      "credentials": {
+        "role": "RM",
+        "username": "falguni.trivedi@aravallibank.example",
+        "demo_password": "KuXTjy0LLIr*",
+        "password_hash": "$pbkdf2-sha256$29000$iiUpB.Mdg6rhtKTEANdfEA$OfiGsONtswCo6PpSl9sKp1yO4T1lVL0rCO/GTc/PTGk"
+      },
+      "regulatory_registration": {
+        "registration_type": "IFSCA_ENTITY_STAFF",
+        "registration_number": "IFSCA-SYN-000417",
+        "entity_registration_number": "IFSCA-SYN-000417",
+        "note": "Synthetic placeholder: IFSCA registers the entity; replace with the real format if needed",
+        "nism_certifications": [
+          {
+            "code": "X-A",
+            "name": "NISM-Series-X-A: Investment Adviser (Level 1)",
+            "valid_until": "2028-09-11"
+          },
+          {
+            "code": "X-B",
+            "name": "NISM-Series-X-B: Investment Adviser (Level 2)",
+            "valid_until": "2028-09-11"
+          }
+        ],
+        "valid_until": "2028-09-11",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-GIFT-IFSC",
+      "institution_id": "TEN-AVB",
+      "institution_name": "Aravalli Bank Ltd.",
+      "branch_code": "AVB-GIFT-IBU-0901",
+      "branch_city": "Gandhinagar",
+      "department": "International Wealth",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "AVB-E10239",
+      "account_status": "ACTIVE",
+      "joined_on": "2019-06-25",
+      "created_at": "2019-06-25T14:19:13+05:30",
+      "_meta": {
+        "scenario": "GIFT City IBU RM: USD products incl. DCD for NRIs",
+        "segments_served": [
+          "NRI_GLOBAL"
+        ],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "SWA-1051",
+      "full_legal_name": "Nitin Omkar Joshi",
+      "corporate_email": "nitin.joshi@sahyadriwealth.example",
+      "credentials": {
+        "role": "RM",
+        "username": "nitin.joshi@sahyadriwealth.example",
+        "demo_password": "H8#1&pPdpSM%",
+        "password_hash": "$pbkdf2-sha256$29000$K1NugY9UUujluajbfmdQLQ$kTSwT.R0PsaKSEaUA6No6pvjEegFsg7okWgO..a2JMk"
+      },
+      "regulatory_registration": {
+        "registration_type": "SEBI_RIA",
+        "registration_number": "INA912058347",
+        "entity_registration_number": "INA912058347",
+        "note": "Non-individual RIA: advisers act under the firm's INA number with NISM X-A/X-B",
+        "nism_certifications": [
+          {
+            "code": "X-A",
+            "name": "NISM-Series-X-A: Investment Adviser (Level 1)",
+            "valid_until": "2028-01-29"
+          },
+          {
+            "code": "X-B",
+            "name": "NISM-Series-X-B: Investment Adviser (Level 2)",
+            "valid_until": "2028-01-29"
+          }
+        ],
+        "valid_until": "2028-01-29",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-SWA",
+      "institution_name": "Sahyadri Wealth Advisors Pvt. Ltd.",
+      "branch_code": "SWA-PUN-HQ-01",
+      "branch_city": "Pune",
+      "department": "Investment Advisory",
+      "access_tier": "BRANCH_MANAGER",
+      "reports_to_employee_id": null,
+      "account_status": "ACTIVE",
+      "joined_on": "2014-05-20",
+      "created_at": "2014-05-20T12:51:29+05:30",
+      "_meta": {
+        "scenario": "Principal officer of the RIA; supervises advisers",
+        "segments_served": [
+          "HNI",
+          "PROFESSIONAL",
+          "RETIREE"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": true
+        }
+      }
+    },
+    {
+      "employee_id": "SWA-1076",
+      "full_legal_name": "Ananya Sen",
+      "corporate_email": "ananya.sen@sahyadriwealth.example",
+      "credentials": {
+        "role": "RM",
+        "username": "ananya.sen@sahyadriwealth.example",
+        "demo_password": "#4pZqIsQ6O3t",
+        "password_hash": "$pbkdf2-sha256$29000$k3WiZmYFjLdUrGhWGK3E7A$RUWsjLvPqi6hEQIUE5Buc0b8iu5qEEnBn3B6QpF/DXs"
+      },
+      "regulatory_registration": {
+        "registration_type": "SEBI_RIA",
+        "registration_number": "INA912058347",
+        "entity_registration_number": "INA912058347",
+        "note": "Non-individual RIA: advisers act under the firm's INA number with NISM X-A/X-B",
+        "nism_certifications": [
+          {
+            "code": "X-A",
+            "name": "NISM-Series-X-A: Investment Adviser (Level 1)",
+            "valid_until": "2029-06-29"
+          }
+        ],
+        "valid_until": "2029-06-29",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-SWA",
+      "institution_name": "Sahyadri Wealth Advisors Pvt. Ltd.",
+      "branch_code": "SWA-PUN-HQ-01",
+      "branch_city": "Pune",
+      "department": "Investment Advisory",
+      "access_tier": "JUNIOR_RM",
+      "reports_to_employee_id": "SWA-1051",
+      "account_status": "ACTIVE",
+      "joined_on": "2021-03-10",
+      "created_at": "2021-03-10T16:58:43+05:30",
+      "_meta": {
+        "scenario": "Associate adviser (NISM X-A only): simulate/assess, no finalize",
+        "segments_served": [
+          "MASS_AFFLUENT",
+          "PROFESSIONAL",
+          "YOUNG"
+        ],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": false,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "SWA-1106",
+      "full_legal_name": "Zubin Daruwala",
+      "corporate_email": "zubin.daruwala@sahyadriwealth.example",
+      "credentials": {
+        "role": "RM",
+        "username": "zubin.daruwala@sahyadriwealth.example",
+        "demo_password": "b8Iw6q1*QKbG",
+        "password_hash": "$pbkdf2-sha256$29000$ynWDRp.hXhSOsTCJxAL7GA$a4WQ0ojfxttfYDTv5/aunjwL9FDN5/EQXo1KpeZ2CiY"
+      },
+      "regulatory_registration": {
+        "registration_type": "SEBI_RIA",
+        "registration_number": "INA912058347",
+        "entity_registration_number": "INA912058347",
+        "note": "Non-individual RIA: advisers act under the firm's INA number with NISM X-A/X-B",
+        "nism_certifications": [
+          {
+            "code": "X-A",
+            "name": "NISM-Series-X-A: Investment Adviser (Level 1)",
+            "valid_until": "2028-12-23"
+          },
+          {
+            "code": "X-B",
+            "name": "NISM-Series-X-B: Investment Adviser (Level 2)",
+            "valid_until": "2028-12-23"
+          }
+        ],
+        "valid_until": "2028-12-23",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-SWA",
+      "institution_name": "Sahyadri Wealth Advisors Pvt. Ltd.",
+      "branch_code": "SWA-MUM-NRP-02",
+      "branch_city": "Mumbai",
+      "department": "Family Office Advisory",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "SWA-1051",
+      "account_status": "ACTIVE",
+      "joined_on": "2019-11-24",
+      "created_at": "2019-11-24T11:21:14+05:30",
+      "_meta": {
+        "scenario": "Family-office adviser for UHNI and HUF clients",
+        "segments_served": [
+          "UHNI",
+          "FOUNDER",
+          "SPECIAL"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "SWA-1119",
+      "full_legal_name": "Ashish Srivastava",
+      "corporate_email": "ashish.srivastava@sahyadriwealth.example",
+      "credentials": {
+        "role": "RM",
+        "username": "ashish.srivastava@sahyadriwealth.example",
+        "demo_password": "Sxnd%r81fnI*",
+        "password_hash": "$pbkdf2-sha256$29000$1kAJpH0iBXvPXUDWwXcyXg$wkSwHGH1DraFej67BqswSmj2/Q7lpgz2StrYPweevzA"
+      },
+      "regulatory_registration": {
+        "registration_type": "SEBI_RIA",
+        "registration_number": "INA912058347",
+        "entity_registration_number": "INA912058347",
+        "note": "Non-individual RIA: advisers act under the firm's INA number with NISM X-A/X-B",
+        "nism_certifications": [
+          {
+            "code": "X-A",
+            "name": "NISM-Series-X-A: Investment Adviser (Level 1)",
+            "valid_until": "2027-05-26"
+          },
+          {
+            "code": "X-B",
+            "name": "NISM-Series-X-B: Investment Adviser (Level 2)",
+            "valid_until": "2027-05-26"
+          }
+        ],
+        "valid_until": "2027-05-26",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-SWA",
+      "institution_name": "Sahyadri Wealth Advisors Pvt. Ltd.",
+      "branch_code": "SWA-MUM-NRP-02",
+      "branch_city": "Mumbai",
+      "department": "Family Office Advisory",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "SWA-1051",
+      "account_status": "SUSPENDED",
+      "joined_on": "2018-12-09",
+      "created_at": "2018-12-09T13:32:53+05:30",
+      "_meta": {
+        "scenario": "Suspended pending compliance review; clients need reassignment",
+        "segments_served": [
+          "HNI"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": false,
+          "configure_product": false,
+          "simulate_payoff": false,
+          "run_suitability": false,
+          "finalize_configuration": false,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "KCS300116",
+      "full_legal_name": "Saravanan Kumar Natarajan",
+      "corporate_email": "saravanan.natarajan@kavericapital.example",
+      "credentials": {
+        "role": "RM",
+        "username": "saravanan.natarajan@kavericapital.example",
+        "demo_password": "PVl!&%Mq8O9@",
+        "password_hash": "$pbkdf2-sha256$29000$7Jv6Ngd2PTVtgtuGIIM2yg$ni7VCMX/G0a1FRQfQIQOnROhn.JpHMPoiCW3DdiWWOg"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E994601",
+        "entity_registration_number": "ARN-936580",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2027-05-06"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2027-05-06"
+          }
+        ],
+        "valid_until": "2027-05-06",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-KCS",
+      "institution_name": "Kaveri Capital Securities Ltd.",
+      "branch_code": "KCS-CHN-TNG-11",
+      "branch_city": "Chennai",
+      "department": "Retail Wealth",
+      "access_tier": "BRANCH_MANAGER",
+      "reports_to_employee_id": null,
+      "account_status": "ACTIVE",
+      "joined_on": "2021-03-19",
+      "created_at": "2021-03-19T13:49:55+05:30",
+      "_meta": {
+        "scenario": "Branch manager, Tamil Nadu retail wealth",
+        "segments_served": [
+          "MASS_AFFLUENT",
+          "RETIREE",
+          "HNI",
+          "UHNI",
+          "PROFESSIONAL",
+          "MSME"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": true
+        }
+      }
+    },
+    {
+      "employee_id": "KCS300154",
+      "full_legal_name": "Revathi Raghavan",
+      "corporate_email": "revathi.raghavan@kavericapital.example",
+      "credentials": {
+        "role": "RM",
+        "username": "revathi.raghavan@kavericapital.example",
+        "demo_password": "sMhqt*rtJe9y",
+        "password_hash": "$pbkdf2-sha256$29000$wC.uJ2mkn33pi/UHTDiDXQ$kfZiwGx87Hr8ycKEBVDM7NmEF0S99WTM3Lem2Net08g"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E995311",
+        "entity_registration_number": "ARN-936580",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2028-03-07"
+          }
+        ],
+        "valid_until": "2028-03-07",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-KCS",
+      "institution_name": "Kaveri Capital Securities Ltd.",
+      "branch_code": "KCS-CHN-TNG-11",
+      "branch_city": "Chennai",
+      "department": "Retail Wealth",
+      "access_tier": "JUNIOR_RM",
+      "reports_to_employee_id": "KCS300116",
+      "account_status": "ACTIVE",
+      "joined_on": "2019-04-22",
+      "created_at": "2019-04-22T17:05:29+05:30",
+      "_meta": {
+        "scenario": "Junior RM for retail and senior-citizen clients",
+        "segments_served": [
+          "MASS_AFFLUENT",
+          "RETIREE",
+          "YOUNG"
+        ],
+        "gender": "F",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": false,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "KCS300177",
+      "full_legal_name": "Mahesh Naidu",
+      "corporate_email": "mahesh.naidu@kavericapital.example",
+      "credentials": {
+        "role": "RM",
+        "username": "mahesh.naidu@kavericapital.example",
+        "demo_password": "QBmTduy0@$Gp",
+        "password_hash": "$pbkdf2-sha256$29000$if3ebLhsddtctDX3T6G9cA$qAo/3GIbqT96Pkmo9MpH2D7GBVGQMkOQETMuUtueIl0"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E976615",
+        "entity_registration_number": "ARN-936580",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2029-03-01"
+          },
+          {
+            "code": "XXI-A",
+            "name": "NISM-Series-XXI-A: Portfolio Management Services (PMS) Distributors",
+            "valid_until": "2029-03-01"
+          },
+          {
+            "code": "VIII",
+            "name": "NISM-Series-VIII: Equity Derivatives",
+            "valid_until": "2029-03-01"
+          }
+        ],
+        "valid_until": "2029-03-01",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-KCS",
+      "institution_name": "Kaveri Capital Securities Ltd.",
+      "branch_code": "KCS-HYD-HTC-12",
+      "branch_city": "Hyderabad",
+      "department": "Wealth Desk",
+      "access_tier": "SENIOR_ADVISOR",
+      "reports_to_employee_id": "KCS300116",
+      "account_status": "ACTIVE",
+      "joined_on": "2015-04-08",
+      "created_at": "2015-04-08T17:38:30+05:30",
+      "_meta": {
+        "scenario": "Wealth RM for IT professionals, traders and NRIs' families",
+        "segments_served": [
+          "YOUNG",
+          "MASS_AFFLUENT",
+          "TRADER",
+          "PROFESSIONAL",
+          "HNI",
+          "FOUNDER"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": true,
+          "view_branch_audit": false
+        }
+      }
+    },
+    {
+      "employee_id": "KCS300187",
+      "full_legal_name": "Senthil Krishnan",
+      "corporate_email": "senthil.krishnan@kavericapital.example",
+      "credentials": {
+        "role": "RM",
+        "username": "senthil.krishnan@kavericapital.example",
+        "demo_password": "s2wd2@IyT3Aw",
+        "password_hash": "$pbkdf2-sha256$29000$G8skjzj4W3Rgm6KXDO6yqw$nlwl0hDZBBhJGmm6Zz8Jwdx4z.kmWBB/PER8PfD.x6Y"
+      },
+      "regulatory_registration": {
+        "registration_type": "AMFI_EUIN",
+        "registration_number": "E999000",
+        "entity_registration_number": "ARN-936580",
+        "note": "Employee Unique Identification Number under the institution's ARN",
+        "nism_certifications": [
+          {
+            "code": "V-A",
+            "name": "NISM-Series-V-A: Mutual Fund Distributors",
+            "valid_until": "2028-02-26"
+          }
+        ],
+        "valid_until": "2028-02-26",
+        "verification_status": "VERIFIED"
+      },
+      "operating_jurisdiction": "IN-ONSHORE",
+      "institution_id": "TEN-KCS",
+      "institution_name": "Kaveri Capital Securities Ltd.",
+      "branch_code": "KCS-CBE-RSP-13",
+      "branch_city": "Coimbatore",
+      "department": "Wealth Desk",
+      "access_tier": "JUNIOR_RM",
+      "reports_to_employee_id": "KCS300116",
+      "account_status": "ACTIVE",
+      "joined_on": "2013-10-07",
+      "created_at": "2013-10-07T17:20:48+05:30",
+      "_meta": {
+        "scenario": "Junior RM covering MSME owners and agri-land sellers",
+        "segments_served": [
+          "MSME",
+          "RURAL",
+          "MASS_AFFLUENT"
+        ],
+        "gender": "M",
+        "effective_permissions": {
+          "view_assigned_clients": true,
+          "configure_product": true,
+          "simulate_payoff": true,
+          "run_suitability": true,
+          "finalize_configuration": false,
+          "view_branch_audit": false
+        }
+      }
+    }
+  ]
+}

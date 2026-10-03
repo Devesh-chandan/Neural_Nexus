@@ -30,10 +30,20 @@ def save_run(
     now = datetime.now(timezone.utc).isoformat()
     with conn:
         conn.execute(
-            """INSERT OR REPLACE INTO runs
+            """INSERT INTO runs
             (run_id, case_id, product_json, metrics_json, suitability_json,
              explanation_json, data_source, as_of, snapshot_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (run_id) DO UPDATE SET
+            case_id=EXCLUDED.case_id,
+            product_json=EXCLUDED.product_json,
+            metrics_json=EXCLUDED.metrics_json,
+            suitability_json=EXCLUDED.suitability_json,
+            explanation_json=EXCLUDED.explanation_json,
+            data_source=EXCLUDED.data_source,
+            as_of=EXCLUDED.as_of,
+            snapshot_id=EXCLUDED.snapshot_id,
+            created_at=EXCLUDED.created_at""",
             (
                 run_id,
                 case_id,
@@ -52,7 +62,7 @@ def save_run(
 
 def load_run(run_id: str) -> Optional[dict]:
     conn = get_connection()
-    row = conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+    row = conn.execute("SELECT * FROM runs WHERE run_id = %s", (run_id,)).fetchone()
     conn.close()
     if row is None:
         return None

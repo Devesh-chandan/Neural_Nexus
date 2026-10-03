@@ -71,7 +71,7 @@ def set_rm_password(rm_id: str, password: str) -> None:
     pw_hash = _hash_password(password)
     with conn:
         conn.execute(
-            "UPDATE relationship_managers SET password_hash = ? WHERE rm_id = ?",
+            "UPDATE relationship_managers SET password_hash = %s WHERE rm_id = %s",
             (pw_hash, rm_id),
         )
     conn.close()
@@ -86,7 +86,7 @@ def rm_login(corporate_email: str, employee_id: str) -> Optional[Dict[str, Any]]
     conn = get_connection()
     row = conn.execute(
         """SELECT * FROM relationship_managers
-           WHERE LOWER(corporate_email) = LOWER(?) AND LOWER(employee_id) = LOWER(?)""",
+           WHERE LOWER(corporate_email) = LOWER(%s) AND LOWER(employee_id) = LOWER(%s)""",
         (corporate_email.strip(), employee_id.strip()),
     ).fetchone()
     conn.close()
@@ -121,7 +121,7 @@ def create_client_account(
         conn.execute(
             """INSERT INTO client_accounts
                (account_id, case_id, client_name, email, password_hash, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s)""",
             (account_id, case_id, client_name, email.strip().lower(), pw_hash, now),
         )
     conn.close()
@@ -131,7 +131,7 @@ def create_client_account(
 def get_client_account_by_email(email: str) -> Optional[Dict[str, Any]]:
     conn = get_connection()
     row = conn.execute(
-        "SELECT * FROM client_accounts WHERE LOWER(email) = LOWER(?)",
+        "SELECT * FROM client_accounts WHERE LOWER(email) = LOWER(%s)",
         (email.strip(),),
     ).fetchone()
     conn.close()

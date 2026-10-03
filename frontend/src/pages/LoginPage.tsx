@@ -5,7 +5,6 @@ import {
   User,
   Mail,
   Lock,
-  IdCard,
   Eye,
   EyeOff,
   LogIn,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { Alert, Spinner } from '../components/UIKit';
+import { supabaseConfigured } from '../lib/supabase';
 
 type Portal = 'rm' | 'client';
 
@@ -21,7 +21,7 @@ type Portal = 'rm' | 'client';
 // raw axios shape as a fallback.
 function errorDetail(err: unknown): string | undefined {
   const e = err as { detail?: string; response?: { data?: { detail?: string } } };
-  return e?.detail ?? e?.response?.data?.detail;
+  return e?.detail ?? e?.response?.data?.detail ?? (err instanceof Error ? err.message : undefined);
 }
 
 const LoginPage: React.FC = () => {
@@ -32,7 +32,7 @@ const LoginPage: React.FC = () => {
 
   // RM form state
   const [rmEmail, setRmEmail] = useState('');
-  const [rmEmployeeId, setRmEmployeeId] = useState('');
+  const [rmPassword, setRmPassword] = useState('');
 
   // Client form state
   const [clientEmail, setClientEmail] = useState('');
@@ -47,7 +47,7 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await loginAsRM(rmEmail.trim(), rmEmployeeId.trim());
+      await loginAsRM(rmEmail.trim(), rmPassword);
       navigate('/rm');
     } catch (err: unknown) {
       setError(errorDetail(err) ?? 'Login failed. Check your credentials.');
@@ -121,6 +121,12 @@ const LoginPage: React.FC = () => {
         </div>
 
         <div className="login-card animate-scale" key={activePortal}>
+          {!supabaseConfigured && (
+            <Alert variant="warning" className="mb-4">
+              Supabase is not configured. Add the project URL and public anon key to
+              <code> frontend/.env.local</code>, then restart the frontend.
+            </Alert>
+          )}
           {error && (
             <Alert variant="error" className="mb-4">
               {error}
@@ -133,7 +139,7 @@ const LoginPage: React.FC = () => {
               <div className="login-card-head">
                 <div className="card-title" style={{ marginBottom: 2 }}>Relationship Manager</div>
                 <div style={{ fontSize: 13, color: 'var(--stone)' }}>
-                  Use your institutional credentials
+                  Sign in with your registered email and password
                 </div>
               </div>
 
@@ -158,23 +164,22 @@ const LoginPage: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="rm-login-emp-id">
-                    Employee ID
+                  <label className="form-label" htmlFor="rm-login-password">
+                    Password
                   </label>
                   <div className="input-icon">
-                    <IdCard size={16} aria-hidden="true" />
+                    <Lock size={16} aria-hidden="true" />
                     <input
-                      id="rm-login-emp-id"
-                      type="text"
-                      className="form-input mono"
-                      placeholder="e.g. EMP-SNR-D5B487"
-                      value={rmEmployeeId}
-                      onChange={(e) => setRmEmployeeId(e.target.value)}
+                      id="rm-login-password"
+                      type="password"
+                      className="form-input"
+                      placeholder="Enter your password"
+                      value={rmPassword}
+                      onChange={(e) => setRmPassword(e.target.value)}
                       required
-                      autoComplete="off"
+                      autoComplete="current-password"
                     />
                   </div>
-                  <div className="form-hint">The employee ID you used during RM registration.</div>
                 </div>
 
                 <button

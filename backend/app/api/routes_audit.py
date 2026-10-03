@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.core.errors import AppError
 from app.store.audit import get_audit_record, verify_chain
@@ -20,7 +20,9 @@ async def verify_chain_route() -> Dict[str, Any]:
 
 
 @router.get("/audit/{run_id}")
-async def get_audit(run_id: str) -> Dict[str, Any]:
+async def get_audit(run_id: str, request: Request) -> Dict[str, Any]:
+    if request.state.user.get("user_type") != "rm":
+        raise AppError(403, "FORBIDDEN", "Audit records are restricted to relationship managers.")
     record = get_audit_record(run_id)
     if record is None:
         raise AppError(404, "AUDIT_NOT_FOUND", f"No audit record for run {run_id}.")

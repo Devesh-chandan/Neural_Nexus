@@ -52,7 +52,7 @@ def append_audit(
             """INSERT INTO audit_log
             (run_id, created_at, payload_json, payload_hash, prev_hash, record_hash,
              model, prompt_version, rules_version, snapshot_id, verdict, data_source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (
                 run_id,
                 now,
@@ -74,7 +74,7 @@ def append_audit(
 def get_audit_record(run_id: str) -> Optional[Dict[str, Any]]:
     conn = get_connection()
     row = conn.execute(
-        "SELECT * FROM audit_log WHERE run_id = ? ORDER BY id DESC LIMIT 1",
+        "SELECT * FROM audit_log WHERE run_id = %s ORDER BY id DESC LIMIT 1",
         (run_id,),
     ).fetchone()
     conn.close()

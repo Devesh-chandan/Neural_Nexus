@@ -4,7 +4,7 @@ A decision-support prototype for wealth management teams to configure, visualize
 
 ## ⚠️ Important Limitations & Disclaimers
 
-- **No real authentication.** User mode (RM vs Client) is determined by the route (`/rm` vs `/client`). In production, authentication and authorisation are mandatory.
+- **Authentication.** Supabase Auth provides email/password sessions. The FastAPI backend validates access tokens against Supabase, and protected client data is scoped to the authenticated user. Relationship Manager access is assigned by the onboarding API; this prototype does not verify regulatory credentials with a live regulator.
 - **Illustrative analysis only.** This tool uses historical data and statistical models. Past performance does not predict future results. Issuer credit risk and liquidity risk are not modelled.
 - **Not investment advice.** This is a decision-support tool. Suitability must be confirmed by a qualified person.
 - **Suitability rules are illustrative.** Thresholds in `backend/config/suitability_rules.yaml` are pending compliance review.
@@ -54,6 +54,16 @@ npm install
 npm run dev   # → http://localhost:5173
 ```
 
+### Supabase authentication and demo users
+
+1. Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then run `supabase start` for a local project, or create a hosted Supabase project.
+2. Apply `supabase/migrations/20261003000000_create_user_profiles.sql` with `supabase db reset` (local) or `supabase link --project-ref <project-ref>` followed by `supabase db push` (hosted).
+3. Copy the project URL and publishable/anon key to `frontend/.env.local` using `frontend/.env.example`.
+4. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and the **server-only** `SUPABASE_SERVICE_ROLE_KEY` in `backend/.env` using `.env.example`. Never put the service-role key in a `VITE_` variable or browser code.
+5. From `backend/`, seed ten fictitious client accounts with `python scripts/seed_demo_users.py`.
+
+All seeded accounts use the password `NeuralDemo123!`. Their email addresses are `demo.aarav@example.test`, `demo.diya@example.test`, `demo.kabir@example.test`, `demo.ananya@example.test`, `demo.ishaan@example.test`, `demo.meera@example.test`, `demo.arjun@example.test`, `demo.sara@example.test`, `demo.rohan@example.test`, and `demo.nisha@example.test`. These `.test` accounts and `DEMO-TAX-*` values are test fixtures, not real identities. Do not use the shared demo password outside a local/demo environment.
+
 ### Build seed market data (one-time, requires internet)
 ```bash
 cd backend
@@ -78,6 +88,11 @@ See `.env.example` for all variables. Key ones:
 | `LLM_MODEL` | – | Model name (e.g. `claude-3-5-sonnet-20241022`) |
 | `DB_PATH` | `data/nexus.db` | SQLite database path |
 | `CORS_ORIGINS` | `http://localhost:5173` | Allowed frontend origins |
+| `SUPABASE_URL` | – | Supabase project URL (backend) |
+| `SUPABASE_ANON_KEY` | – | Supabase publishable/anon key (backend validation) |
+| `SUPABASE_SERVICE_ROLE_KEY` | – | Backend-only key for account provisioning and demo seeding |
+
+The frontend also needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `frontend/.env.local`.
 
 ## Running Tests
 ```bash

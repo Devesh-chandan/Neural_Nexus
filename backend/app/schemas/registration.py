@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
 from app.schemas.client import ClientProfile
 
@@ -364,6 +364,7 @@ class RMSRegistration(BaseModel):
     identity: RMSIdentity
     compliance: RMSCompliance
     access: RMSAccess
+    password: Optional[SecretStr] = Field(default=None, exclude=True, min_length=12)
 
     @model_validator(mode="after")
     def _validate(self) -> "RMSRegistration":
