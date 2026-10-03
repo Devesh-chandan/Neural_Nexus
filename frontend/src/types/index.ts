@@ -510,6 +510,38 @@ export interface ExplanationResult {
   };
 }
 
+// ── Historical simulation (module2_simulation_engine) ─────────────────────
+
+export interface HistoricalScenario {
+  id: number;
+  situation: string;
+  period: { start: string; end: string };
+  market_move_pct: number;
+  barrier_hit: boolean;
+  money_back: number;
+  return_pct: number;
+  story: string;
+}
+
+export interface SimulationWarning {
+  code: string;
+  message: string;
+}
+
+export interface HistoricalSimulationResult {
+  run_id: string;
+  product_id: string;
+  data_as_of: string;
+  currency: string;
+  scenarios: HistoricalScenario[];
+  warnings: SimulationWarning[];
+  audit: {
+    engine_version: string;
+    market_data: { fingerprint: string; [key: string]: unknown };
+    [key: string]: unknown;
+  };
+}
+
 // ── Recommendation ─────────────────────────────────────────────────────────
 
 export interface ComparisonRow {

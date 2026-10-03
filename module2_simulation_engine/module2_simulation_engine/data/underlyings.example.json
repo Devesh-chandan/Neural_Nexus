@@ -1,0 +1,6 @@
+{
+  "_how_to_use": "Copy this file to data/underlyings.json and keep only the entries you need. Keys are the underlying names used in your product files.",
+  "MIDCPNIFTY": {"ticker": "NIFTY_MID_SELECT.NS", "name": "Nifty Midcap Select", "asset_class": "equity"},
+  "FINNIFTY": {"ticker": "NIFTY_FIN_SERVICE.NS", "name": "Nifty Financial Services", "asset_class": "equity"},
+  "AED/INR": {"ticker": "AEDINR=X", "name": "AED/INR", "asset_class": "fx", "quote_unit": 1}
+}

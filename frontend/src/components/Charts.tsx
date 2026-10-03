@@ -20,6 +20,7 @@ import type {
   HistogramBin,
   MonteCarloResult,
   ScenarioRow,
+  HistoricalScenario,
 } from '../types';
 import { StatBox } from './UIKit';
 
@@ -430,3 +431,77 @@ export const ScenarioTable: React.FC<ScenarioTableProps> = ({ rows, principal })
     </table>
   </div>
 );
+
+// ── HistoricalScenarioTable ───────────────────────────────────────────────
+// Real historical replay (module2_simulation_engine): 20 real past market periods,
+// dated and narrated, as opposed to the synthetic shocks in ScenarioTable above.
+
+interface HistoricalScenarioTableProps {
+  scenarios: HistoricalScenario[];
+  currency: string;
+}
+
+export const HistoricalScenarioTable: React.FC<HistoricalScenarioTableProps> = ({
+  scenarios,
+  currency,
+}) => {
+  const [expanded, setExpanded] = React.useState<number | null>(null);
+  const fmtMoney = (v: number) =>
+    `${currency} ${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="data-table" aria-label="Historical scenario replay table">
+        <thead>
+          <tr>
+            <th>Situation</th>
+            <th>Period</th>
+            <th>Market Move</th>
+            <th>Barrier Hit</th>
+            <th>Money Back</th>
+            <th>Return</th>
+          </tr>
+        </thead>
+        <tbody>
+          {scenarios.map((s) => {
+            const isPositive = s.return_pct >= 0;
+            const isOpen = expanded === s.id;
+            return (
+              <React.Fragment key={s.id}>
+                <tr
+                  onClick={() => setExpanded(isOpen ? null : s.id)}
+                  style={{ cursor: 'pointer' }}
+                  title="Click for the full story"
+                >
+                  <td style={{ fontWeight: 500 }}>{s.situation}</td>
+                  <td className="mono">{s.period.start} → {s.period.end}</td>
+                  <td className={s.market_move_pct >= 0 ? 'text-green' : 'text-red'}>
+                    {s.market_move_pct > 0 ? '+' : ''}{s.market_move_pct.toFixed(2)}%
+                  </td>
+                  <td>
+                    {s.barrier_hit ? (
+                      <span className="product-pill DCD" style={{ fontSize: 10 }}>HIT</span>
+                    ) : (
+                      <span style={{ opacity: 0.5 }}>—</span>
+                    )}
+                  </td>
+                  <td className="mono">{fmtMoney(s.money_back)}</td>
+                  <td className={isPositive ? 'text-green' : 'text-red'}>
+                    {isPositive ? '+' : ''}{s.return_pct.toFixed(2)}%
+                  </td>
+                </tr>
+                {isOpen && (
+                  <tr>
+                    <td colSpan={6} style={{ opacity: 0.85, fontSize: 13, padding: '8px 12px' }}>
+                      {s.story}
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};

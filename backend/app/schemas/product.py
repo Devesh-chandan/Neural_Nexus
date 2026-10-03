@@ -51,3 +51,19 @@ ProductConfig = Annotated[
     Union[ELNConfig, CPNConfig, DCDConfig],
     Field(discriminator="product_type"),
 ]
+
+
+def parse_product_dict(data: dict) -> Union[ELNConfig, CPNConfig, DCDConfig]:
+    """Dispatch a raw {product_type, ...} dict to the matching config model.
+
+    Raises ValueError (via pydantic) on an unknown/missing product_type or invalid fields;
+    callers are expected to wrap this in their own error handling.
+    """
+    pt = str(data.get("product_type", "")).upper()
+    if pt == "ELN":
+        return ELNConfig(**data)
+    if pt == "CPN":
+        return CPNConfig(**data)
+    if pt == "DCD":
+        return DCDConfig(**data)
+    raise ValueError(f"Unknown product_type: {pt}")

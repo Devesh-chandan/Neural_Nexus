@@ -12,6 +12,7 @@ import type {
   EmailCheckResponse,
   FinaliseResponse,
   FixItResponse,
+  HistoricalSimulationResult,
   JurisdictionInfo,
   KycImportResponse,
   MarketHistoryResponse,
@@ -78,6 +79,22 @@ export async function runSuitabilityOnly(params: SuitabilityOnlyParams) {
     as_of: string;
     snapshot_id: string;
   };
+}
+
+/**
+ * Real historical replay (module2_simulation_engine): the given product played back on
+ * 20 real past market periods of matching length, with dated/narrated scenarios. Heavier
+ * than /analyze (fetches real market data), so call this on demand, not on every keystroke.
+ */
+export async function runHistoricalSimulation(
+  product: ProductConfig,
+  historyUntil: 'latest' | 'start_date' = 'latest'
+): Promise<HistoricalSimulationResult> {
+  const { data } = await api.post<HistoricalSimulationResult>('/simulate', {
+    product,
+    history_until: historyUntil,
+  });
+  return data;
 }
 
 // ── Recommend ──────────────────────────────────────────────────────────────

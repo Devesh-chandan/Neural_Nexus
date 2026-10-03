@@ -26,6 +26,7 @@ import {
   fetchMarketHistory,
   runSuitabilityOnly,
   runFixIt,
+  runHistoricalSimulation,
   fetchCases,
   fetchRMs,
 } from '../api';
@@ -41,6 +42,7 @@ import type {
   FixItResponse,
   SuitabilityResult,
   RMSRegistrationResponse,
+  HistoricalSimulationResult,
 } from '../types';
 import {
   LoadingOverlay,
@@ -60,6 +62,7 @@ import {
   PriceChart,
   MetricsSummary,
   ScenarioTable,
+  HistoricalScenarioTable,
 } from '../components/Charts';
 import SuitabilityPanel from '../components/SuitabilityPanel';
 import ExplanationCard, { FormattedClientReasoning, FormattedRMReasoning } from '../components/ExplanationCard';
@@ -227,6 +230,11 @@ const RMPage: React.FC = () => {
   const [fixIt, setFixIt] = useState<FixItResponse | null>(null);
   const [fixLoading, setFixLoading] = useState(false);
 
+  // Real historical replay (module2_simulation_engine) — loaded on demand in the Replay tab
+  const [historicalResult, setHistoricalResult] = useState<HistoricalSimulationResult | null>(null);
+  const [historicalLoading, setHistoricalLoading] = useState(false);
+  const [historicalError, setHistoricalError] = useState<string | null>(null);
+
   // Client Selection State (DB integration)
   const [dbClients, setDbClients] = useState<Array<{ case_id: string; client_name: string; created_at: string; profile: ClientProfile }>>(DEFAULT_CLIENTS);
   const [selectedClientId, setSelectedClientId] = useState<string>('CL-101');
@@ -368,6 +376,8 @@ const RMPage: React.FC = () => {
     setError(null);
     setResult(null);
     setFixIt(null);
+    setHistoricalResult(null);
+    setHistoricalError(null);
     try {
       const product = getProduct();
       const res = await runAnalysis({
@@ -381,6 +391,20 @@ const RMPage: React.FC = () => {
       setError(e?.detail ?? 'Analysis failed. Is the backend running?');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHistoricalScenarios = async () => {
+    setHistoricalLoading(true);
+    setHistoricalError(null);
+    try {
+      const res = await runHistoricalSimulation(getProduct());
+      setHistoricalResult(res);
+    } catch (err: unknown) {
+      const e = err as { detail?: string };
+      setHistoricalError(e?.detail ?? 'Historical replay failed. Is the backend running?');
+    } finally {
+      setHistoricalLoading(false);
     }
   };
 
@@ -843,6 +867,42 @@ const RMPage: React.FC = () => {
                       </div>
                     )}
 
+                    {activeTab === 'replay' && (
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16, marginTop: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                          <h4 style={{ margin: 0 }}>Historical Scenarios (real market periods)</h4>
+                          <button
+                            className="btn btn-soft btn-sm"
+                            onClick={loadHistoricalScenarios}
+                            disabled={historicalLoading}
+                          >
+                            {historicalLoading ? <Spinner size={14} /> : historicalResult ? 'Reload' : 'Load real scenarios'}
+                          </button>
+                        </div>
+                        {historicalError && <Alert variant="error">{historicalError}</Alert>}
+                        {historicalResult && (
+                          <>
+                            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>
+                              Data as of {historicalResult.data_as_of} · {historicalResult.audit.market_data.fingerprint}
+                            </div>
+                            {historicalResult.warnings.length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                                {historicalResult.warnings.map((w, i) => (
+                                  <span key={i} className="product-pill DCD" style={{ fontSize: 10 }} title={w.message}>
+                                    {w.code}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <HistoricalScenarioTable
+                              scenarios={historicalResult.scenarios}
+                              currency={historicalResult.currency}
+                            />
+                          </>
+                        )}
+                      </div>
+                    )}
+
                     {activeTab === 'mc' && result.metrics.monte_carlo && (
                       <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16 }}>
                         <MCFanChart mc={result.metrics.monte_carlo} height={220} />
@@ -1174,6 +1234,42 @@ const RMPage: React.FC = () => {
                     {activeTab === 'replay' && result.metrics.replay && (
                       <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                         <HistogramChart bins={result.metrics.replay.histogram} title="Historical Replay Return Distribution" />
+                      </div>
+                    )}
+
+                    {activeTab === 'replay' && (
+                      <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', marginTop: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                          <h4 style={{ margin: 0 }}>Historical Scenarios (real market periods)</h4>
+                          <button
+                            className="btn btn-soft btn-sm"
+                            onClick={loadHistoricalScenarios}
+                            disabled={historicalLoading}
+                          >
+                            {historicalLoading ? <Spinner size={14} /> : historicalResult ? 'Reload' : 'Load real scenarios'}
+                          </button>
+                        </div>
+                        {historicalError && <Alert variant="error">{historicalError}</Alert>}
+                        {historicalResult && (
+                          <>
+                            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>
+                              Data as of {historicalResult.data_as_of} · {historicalResult.audit.market_data.fingerprint}
+                            </div>
+                            {historicalResult.warnings.length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                                {historicalResult.warnings.map((w, i) => (
+                                  <span key={i} className="product-pill DCD" style={{ fontSize: 10 }} title={w.message}>
+                                    {w.code}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <HistoricalScenarioTable
+                              scenarios={historicalResult.scenarios}
+                              currency={historicalResult.currency}
+                            />
+                          </>
+                        )}
                       </div>
                     )}
                   </>

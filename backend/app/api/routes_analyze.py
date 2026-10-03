@@ -17,7 +17,7 @@ from app.explain.service import generate_explanation
 from app.market.service import get_history
 from app.schemas.analysis import AnalyzeResponse
 from app.schemas.client import ClientProfile
-from app.schemas.product import CPNConfig, DCDConfig, ELNConfig
+from app.schemas.product import parse_product_dict
 from app.store.audit import append_audit
 from app.store.db import init_db
 from app.store.runs import generate_run_id, save_run
@@ -47,14 +47,10 @@ class SuitabilityOnlyRequest(BaseModel):
 
 
 def _parse_product(data: Dict[str, Any]) -> object:
-    pt = data.get("product_type", "").upper()
-    if pt == "ELN":
-        return ELNConfig(**data)
-    elif pt == "CPN":
-        return CPNConfig(**data)
-    elif pt == "DCD":
-        return DCDConfig(**data)
-    raise AppError(422, "VALIDATION_ERROR", f"Unknown product_type: {pt}")
+    try:
+        return parse_product_dict(data)
+    except ValueError as exc:
+        raise AppError(422, "VALIDATION_ERROR", str(exc))
 
 
 @router.post("/analyze")
