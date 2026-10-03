@@ -1,15 +1,5 @@
 import React from 'react';
-import {
-  Brain,
-  MessageSquare,
-  Info,
-  TrendingUp,
-  AlertTriangle,
-  Shield,
-  HelpCircle,
-  CheckCircle2,
-  AlertOctagon,
-} from 'lucide-react';
+import { Brain, MessageSquare } from 'lucide-react';
 import type { ExplanationResult } from '../types';
 import { Alert } from './UIKit';
 
@@ -35,267 +25,152 @@ export const renderInlineMarkdown = (text: string) => {
   });
 };
 
-// ── Section Card Component for Client Rationale ─────────────────────────────
-interface ClientSectionProps {
-  icon: React.ReactNode;
-  title: string;
-  content: string;
-  badgeColor?: string;
-  accentBg?: string;
-}
-
-const ClientSectionCard: React.FC<ClientSectionProps> = ({
-  icon,
-  title,
-  content,
-  badgeColor = 'var(--primary-bright)',
-  accentBg = 'rgba(255,255,255,0.02)',
-}) => {
-  // If content contains bullet questions like "Questions to raise with your RM: ..."
-  const isQuestions = title.toLowerCase().includes('discuss') || title.toLowerCase().includes('questions');
-  let cleanContent = content;
-  let questions: string[] = [];
-
-  if (isQuestions) {
-    cleanContent = content.replace(/^Questions to raise with your RM:\s*/i, '');
-    questions = cleanContent
-      .split(/\?\s+/)
-      .map((q) => q.trim())
-      .filter((q) => q.length > 0)
-      .map((q) => (q.endsWith('?') ? q : `${q}?`));
-  }
-
-  return (
-    <div
-      className="card mb-3"
-      style={{
-        background: accentBg,
-        border: '1px solid var(--hairline-dark)',
-        padding: '16px 20px',
-        borderRadius: 'var(--r-md)',
-      }}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 26,
-            height: 26,
-            borderRadius: '50%',
-            background: 'var(--divider-soft)',
-            color: badgeColor,
-          }}
-        >
-          {icon}
-        </span>
-        <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--on-dark)', margin: 0 }}>
-          {title}
-        </h4>
-      </div>
-
-      {isQuestions && questions.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-          {questions.map((q, idx) => (
-            <div key={idx} className="flex items-start gap-2" style={{ fontSize: 13, color: 'var(--on-dark-mute)' }}>
-              <span style={{ color: badgeColor, marginTop: 2 }}>•</span>
-              <span>{q}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div
-          style={{
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: 'var(--on-dark-mute)',
-          }}
-        >
-          {renderInlineMarkdown(cleanContent)}
-        </div>
-      )}
-    </div>
-  );
-};
-
 // ── Client Explanation Parser ───────────────────────────────────────────────
+const splitQuestions = (body: string): string[] =>
+  body
+    .replace(/^Questions to raise with your RM:\s*/i, '')
+    .split(/\?\s*/)
+    .map((q) => q.replace(/^[•\-\s]+/, '').trim())
+    .filter((q) => q.length > 0)
+    .map((q) => `${q}?`);
+
 export const FormattedClientReasoning: React.FC<{ text: string }> = ({ text }) => {
   if (!text) return null;
 
-  // Check if text uses standard markdown section headers **Header**
+  // Sections are written as "**Header**\nbody"
   const sectionRegex = /\*\*([^*]+)\*\*\n([\s\S]*?)(?=\*\*|$)/g;
   const sections: Array<{ title: string; body: string }> = [];
   let match;
-
   while ((match = sectionRegex.exec(text)) !== null) {
-    sections.push({
-      title: match[1].trim(),
-      body: match[2].trim(),
-    });
+    sections.push({ title: match[1].trim(), body: match[2].trim() });
   }
 
   if (sections.length === 0) {
-    // Fallback for non-structured text
-    return (
-      <div style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--on-dark-mute)' }}>
-        {renderInlineMarkdown(text)}
-      </div>
-    );
+    return <p className="rz-body">{renderInlineMarkdown(text)}</p>;
   }
 
-  const getIcon = (title: string) => {
-    const t = title.toLowerCase();
-    if (t.includes('does') || t.includes('what this')) return <Info size={14} />;
-    if (t.includes('earn') || t.includes('yield') || t.includes('gain')) return <TrendingUp size={14} />;
-    if (t.includes('lose') || t.includes('risk') || t.includes('downside')) return <AlertTriangle size={14} />;
-    if (t.includes('fit') || t.includes('suitability')) return <Shield size={14} />;
-    if (t.includes('discuss') || t.includes('questions')) return <HelpCircle size={14} />;
-    return <MessageSquare size={14} />;
-  };
-
-  const getColor = (title: string) => {
-    const t = title.toLowerCase();
-    if (t.includes('earn')) return 'var(--accent-teal)';
-    if (t.includes('lose')) return 'var(--accent-warning)';
-    if (t.includes('fit')) return 'var(--primary-bright)';
-    if (t.includes('discuss')) return 'var(--stone)';
-    return 'var(--primary-bright)';
-  };
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {sections.map((sec, i) => (
-        <ClientSectionCard
-          key={i}
-          icon={getIcon(sec.title)}
-          title={sec.title}
-          content={sec.body}
-          badgeColor={getColor(sec.title)}
-        />
-      ))}
+    <div className="rz-sections">
+      {sections.map((sec, i) => {
+        const t = sec.title.toLowerCase();
+        const isQuestions = t.includes('discuss') || t.includes('questions');
+        return (
+          <div key={i} className="rz-section">
+            <h5 className="rz-title">{sec.title}</h5>
+            {isQuestions ? (
+              <ul className="rz-list">
+                {splitQuestions(sec.body).map((q, idx) => (
+                  <li key={idx}>{q}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="rz-body">{renderInlineMarkdown(sec.body)}</p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
 
 // ── RM Compliance Explanation Parser ─────────────────────────────────────────
+const stripMd = (s: string) => s.replace(/\*\*/g, '').trim();
+
+/** "**A:** x | **B:** y" → [{label: 'A', value: 'x'}, …] */
+const toPairs = (line: string) =>
+  line
+    .replace(/^- /, '')
+    .split('|')
+    .map((part) => {
+      const clean = stripMd(part);
+      const i = clean.indexOf(':');
+      return i === -1
+        ? { label: clean, value: '' }
+        : { label: clean.slice(0, i).trim(), value: clean.slice(i + 1).trim() };
+    })
+    .filter((p) => p.label);
+
+const verdictTone = (v: string) =>
+  v.includes('NOT') ? 'red' : v.includes('CONDITION') ? 'amber' : v.includes('SUITABLE') ? 'green' : '';
+
 export const FormattedRMReasoning: React.FC<{ text: string }> = ({ text }) => {
   if (!text) return null;
 
-  // Split into lines or sections
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const isMetric = (l: string) =>
+    ['- Max gain:', '- Stress loss:', '- P(loss)', '- Replay', '- Indicative'].some((k) => l.startsWith(k));
+  const isRule = (l: string) => /^- \[(AMBER|RED|GREEN)\]/.test(l);
 
-  // Extract Header Summary line (Verdict, Score, Risk Tier)
   const verdictLine = lines.find((l) => l.includes('Verdict:') || l.includes('Suitability score:'));
-  
-  // Extract Risk metrics lines
-  const riskMetricLines = lines.filter((l) => l.startsWith('- Max gain:') || l.startsWith('- Stress loss:') || l.startsWith('- P(loss)') || l.startsWith('- Replay') || l.startsWith('- Indicative'));
-
-  // Extract Triggered rules lines
-  const ruleLines = lines.filter((l) => l.startsWith('- [AMBER]') || l.startsWith('- [RED]') || l.startsWith('- [GREEN]'));
-
-  // Extract general narrative text
-  const otherLines = lines.filter(
+  const metrics = lines.filter(isMetric).flatMap(toPairs);
+  const rules = lines.filter(isRule);
+  const narrative = lines.filter(
     (l) =>
+      l !== verdictLine &&
+      !isMetric(l) &&
+      !isRule(l) &&
       !l.startsWith('**RM Technical Summary') &&
-      !l.includes('Verdict:') &&
-      !l.startsWith('**Risk metrics:**') &&
-      !l.startsWith('**Rules triggered:**') &&
-      !l.startsWith('- Max gain:') &&
-      !l.startsWith('- Stress loss:') &&
-      !l.startsWith('- P(loss)') &&
-      !l.startsWith('- Replay') &&
-      !l.startsWith('- Indicative') &&
-      !l.startsWith('- [AMBER]') &&
-      !l.startsWith('- [RED]') &&
-      !l.startsWith('- [GREEN]') &&
+      !l.startsWith('**Risk metrics') &&
+      !l.startsWith('**Rules triggered') &&
       !l.startsWith('*Data source')
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      
-      {/* Header Verdict & Score Summary Bar */}
+    <div className="rz-sections">
       {verdictLine && (
-        <div
-          style={{
-            background: 'var(--surface-deep)',
-            border: '1px solid var(--hairline-dark)',
-            borderRadius: 'var(--r-md)',
-            padding: '12px 16px',
-            fontSize: 13,
-            color: 'var(--on-dark-mute)',
-          }}
-        >
-          {renderInlineMarkdown(verdictLine)}
+        <div className="rz-stats">
+          {toPairs(verdictLine).map((p, i) => (
+            <div key={i} className="rz-stat">
+              <span className="rz-stat-label">{p.label}</span>
+              <span className={`rz-stat-value ${p.label.toLowerCase() === 'verdict' ? `tone-${verdictTone(p.value)}` : ''}`}>
+                {p.value.replace(/_/g, ' ')}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Structured Risk Metrics Grid if present */}
-      {riskMetricLines.length > 0 && (
-        <div style={{ background: 'rgba(0,0,0,0.3)', padding: 14, borderRadius: 'var(--r-md)', border: '1px solid var(--hairline-dark)' }}>
-          <div className="stat-label mb-2" style={{ fontSize: 11 }}>Risk Metrics & Simulated Parameters</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {riskMetricLines.map((line, idx) => (
-              <div key={idx} className="flex items-center gap-2" style={{ fontSize: 13, color: 'var(--on-dark-mute)' }}>
-                <span className="mono" style={{ color: 'var(--primary-bright)' }}>•</span>
-                <span>{renderInlineMarkdown(line.replace(/^- /, ''))}</span>
+      {metrics.length > 0 && (
+        <div className="rz-section">
+          <h5 className="rz-title">Risk metrics</h5>
+          <dl className="rz-kv">
+            {metrics.map((m, i) => (
+              <div key={i}>
+                <dt>{m.label}</dt>
+                <dd className="mono">{m.value}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         </div>
       )}
 
-      {/* Triggered Regulatory Rules */}
-      {ruleLines.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div className="stat-label" style={{ fontSize: 11 }}>Regulatory Rules Evaluation & Warnings</div>
-          {ruleLines.map((rule, idx) => {
-            const isAmber = rule.includes('[AMBER]');
-            const isRed = rule.includes('[RED]');
-            const statusColor = isRed ? 'var(--accent-danger)' : isAmber ? 'var(--accent-warning)' : 'var(--accent-teal)';
-            const statusBg = isRed ? 'rgba(226,59,74,0.1)' : isAmber ? 'rgba(236,126,0,0.1)' : 'rgba(0,168,126,0.1)';
-
-            return (
-              <div
-                key={idx}
-                style={{
-                  background: statusBg,
-                  border: `1px solid ${statusColor}40`,
-                  borderRadius: 'var(--r-md)',
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10,
-                }}
-              >
-                <span style={{ color: statusColor, marginTop: 2 }}>
-                  {isRed ? <AlertOctagon size={14} /> : isAmber ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
-                </span>
-                <div style={{ fontSize: 13, color: 'var(--on-dark-mute)', lineHeight: 1.5 }}>
-                  {renderInlineMarkdown(rule.replace(/^- /, ''))}
-                </div>
-              </div>
-            );
-          })}
+      {rules.length > 0 && (
+        <div className="rz-section">
+          <h5 className="rz-title">Rules triggered</h5>
+          <ul className="rz-rules">
+            {rules.map((rule, idx) => {
+              const tone = rule.includes('[RED]') ? 'red' : rule.includes('[AMBER]') ? 'amber' : 'green';
+              return (
+                <li key={idx}>
+                  <span className={`rz-dot tone-${tone}`} aria-hidden="true" />
+                  <span>{renderInlineMarkdown(rule.replace(/^- \[(AMBER|RED|GREEN)\]\s*/, ''))}</span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
-      {/* Additional Narrative Text */}
-      {otherLines.length > 0 && (
-        <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--on-dark-mute)' }}>
-          {otherLines.map((l, i) => (
-            <p key={i} style={{ marginBottom: 6 }}>
-              {renderInlineMarkdown(l)}
-            </p>
+      {narrative.length > 0 && (
+        <div className="rz-section">
+          {narrative.map((l, i) => (
+            <p key={i} className="rz-body">{renderInlineMarkdown(l.replace(/^- /, ''))}</p>
           ))}
         </div>
       )}
 
       {lines.some((l) => l.startsWith('*Data source')) && (
-        <div style={{ fontSize: 11, color: 'var(--stone)', fontStyle: 'italic', marginTop: 4 }}>
-          *Data source and snapshot hash are recorded in the audit trail.
-        </div>
+        <p className="rz-footnote">Data source and snapshot hash are recorded in the audit trail.</p>
       )}
     </div>
   );
@@ -361,12 +236,7 @@ const ExplanationCard: React.FC<ExplanationCardProps> = ({
         </Alert>
       )}
 
-      {/* LLM notice */}
-      <Alert variant="info" className="mt-4">
-        <span style={{ fontSize: 12 }}>
-          AI-generated narrative. The suitability verdict and risk metrics are calculated deterministically by the rules engine — the LLM strictly narrates the computed facts.
-        </span>
-      </Alert>
+
     </div>
   );
 };

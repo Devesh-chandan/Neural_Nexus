@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import {
   Play,
   TrendingUp,
@@ -15,7 +16,6 @@ import {
   Maximize2,
   X,
   Search,
-  UserCheck,
   Plus,
   Layers,
   Sparkles,
@@ -28,7 +28,7 @@ import {
   runFixIt,
   runHistoricalSimulation,
   fetchCases,
-  fetchRMs,
+  updateCaseProductConfig,
 } from '../api';
 
 import type {
@@ -41,7 +41,6 @@ import type {
   AnalyzeResponse,
   FixItResponse,
   SuitabilityResult,
-  RMSRegistrationResponse,
   HistoricalSimulationResult,
 } from '../types';
 import {
@@ -64,10 +63,8 @@ import {
   ScenarioTable,
   HistoricalScenarioTable,
 } from '../components/Charts';
-import SuitabilityPanel from '../components/SuitabilityPanel';
 import ExplanationCard, { FormattedClientReasoning, FormattedRMReasoning } from '../components/ExplanationCard';
-
-// ── Default configs ────────────────────────────────────────────────────────
+import SuitabilityAssessmentCard from '../components/SuitabilityAssessmentCard';
 
 const DEFAULT_ELN: ELNConfig = {
   product_type: 'ELN',
@@ -189,6 +186,15 @@ const DEFAULT_CLIENTS: Array<{ case_id: string; client_name: string; created_at:
   },
 ];
 
+type ClientRow = {
+  case_id: string;
+  client_name: string;
+  created_at: string;
+  profile: ClientProfile;
+  product_config?: ProductConfig | null;
+  persisted?: boolean;
+};
+
 type Tab = 'payoff' | 'scenarios' | 'replay' | 'mc' | 'suitability' | 'explanation';
 
 const sectionLabel: React.CSSProperties = {
@@ -203,6 +209,7 @@ const sectionLabel: React.CSSProperties = {
 
 const RMPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [productType, setProductType] = useState<'ELN' | 'CPN' | 'DCD'>('ELN');
   const [eln, setEln] = useState<ELNConfig>({ ...DEFAULT_ELN });
@@ -236,13 +243,14 @@ const RMPage: React.FC = () => {
   const [historicalError, setHistoricalError] = useState<string | null>(null);
 
   // Client Selection State (DB integration)
-  const [dbClients, setDbClients] = useState<Array<{ case_id: string; client_name: string; created_at: string; profile: ClientProfile }>>(DEFAULT_CLIENTS);
+  const [dbClients, setDbClients] = useState<ClientRow[]>(DEFAULT_CLIENTS);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const lastSavedConfig = useRef<string>('');
   const [selectedClientId, setSelectedClientId] = useState<string>('CL-101');
   const [clientFilter, setClientFilter] = useState('');
   const [loadingClients, setLoadingClients] = useState(false);
 
-  // RM Profile State
-  const [rmsList, setRmsList] = useState<RMSRegistrationResponse[]>([]);
+  // RM Profile State — sourced from auth context, fallback for unauthenticated dev use
   const [activeRM, setActiveRM] = useState<{
     rm_id: string;
     legal_name: string;
@@ -253,15 +261,30 @@ const RMPage: React.FC = () => {
     access_tier: string;
     operating_jurisdiction: string;
   }>({
-    rm_id: 'RM00892',
-    legal_name: 'Priya Sharma',
-    corporate_email: 'priya@hdfcbank.com',
-    employee_id: 'EMP-9821',
-    institution: 'HDFC Wealth Management',
-    branch_code: 'MUM-01',
-    access_tier: 'tier_2_senior_advisor',
-    operating_jurisdiction: 'IN',
+    rm_id: user?.rm_id ?? '',
+    legal_name: user?.legal_name ?? 'Loading…',
+    corporate_email: user?.corporate_email ?? '',
+    employee_id: user?.employee_id ?? '',
+    institution: user?.institution ?? '',
+    branch_code: user?.branch_code ?? '',
+    access_tier: user?.access_tier ?? '',
+    operating_jurisdiction: user?.operating_jurisdiction ?? '',
   });
+
+  // Keep activeRM in sync with the logged-in user
+  useEffect(() => {
+    if (!user) return;
+    setActiveRM({
+      rm_id: user.rm_id ?? '',
+      legal_name: user.legal_name ?? '',
+      corporate_email: user.corporate_email ?? '',
+      employee_id: user.employee_id ?? '',
+      institution: user.institution ?? '',
+      branch_code: user.branch_code ?? '',
+      access_tier: user.access_tier ?? '',
+      operating_jurisdiction: user.operating_jurisdiction ?? '',
+    });
+  }, [user]);
 
   // Full Screen Modal State
   const [fullScreenView, setFullScreenView] = useState<'none' | 'graph' | 'reasoning'>('none');
@@ -284,11 +307,13 @@ const RMPage: React.FC = () => {
     fetchCases()
       .then((res) => {
         if (res && res.cases && res.cases.length > 0) {
-          const fetched = res.cases.map((c) => ({
+          const fetched: ClientRow[] = res.cases.map((c) => ({
             case_id: c.case_id,
             client_name: c.client_name || c.profile?.client_name || 'Registered Client',
             created_at: c.created_at,
             profile: c.profile && c.profile.client_name ? c.profile : { ...DEFAULT_PROFILE, client_name: c.client_name || 'Client' },
+            product_config: c.product_config ?? null,
+            persisted: true,
           }));
           const uniqueClients: typeof fetched = [];
           const seenNames = new Set<string>();
@@ -307,19 +332,11 @@ const RMPage: React.FC = () => {
             }
           }
           setDbClients(uniqueClients);
+          if (fetched.length > 0) handleSelectClient(fetched[0]);
         }
       })
       .catch(() => {})
       .finally(() => setLoadingClients(false));
-
-    // Fetch DB RMs
-    fetchRMs()
-      .then((res) => {
-        if (res && res.rms && res.rms.length > 0) {
-          setRmsList(res.rms);
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const currentUnderlying =
@@ -408,6 +425,14 @@ const RMPage: React.FC = () => {
     }
   };
 
+  // handleAnalyze clears historicalResult, so every new client/terms run re-replays on the engine.
+  useEffect(() => {
+    if (activeTab === 'replay' && result && !historicalResult && !historicalLoading && !historicalError) {
+      void loadHistoricalScenarios();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, result, historicalResult, historicalLoading, historicalError]);
+
   const handleFixIt = async () => {
     if (!result?.suitability) return;
     setFixLoading(true);
@@ -421,12 +446,42 @@ const RMPage: React.FC = () => {
     }
   };
 
-  // Client Selection Handler
-  const handleSelectClient = (client: { case_id: string; client_name: string; profile: ClientProfile }) => {
+  // Client Selection Handler – only the client profile changes; the product terms the RM
+  // set stay as they are, so product analysis (payoff, scenarios, replay, MC) is unaffected
+  // and only the suitability check reflects the new client.
+  const handleSelectClient = (client: ClientRow) => {
+    const current = productType === 'ELN' ? eln : productType === 'CPN' ? cpn : dcd;
+    // Treat the current terms as already saved so switching clients doesn't write them
+    // to the new client's record; only actual edits are persisted.
+    lastSavedConfig.current = JSON.stringify(current);
+    setSaveState('idle');
     setSelectedClientId(client.case_id);
     setWithProfile(true);
     setProfile(client.profile);
   };
+
+  const selectedClient = dbClients.find((c) => c.case_id === selectedClientId);
+
+  // Persist product edits to the selected client's case (debounced).
+  useEffect(() => {
+    if (!selectedClient?.persisted) return;
+    const product = productType === 'ELN' ? eln : productType === 'CPN' ? cpn : dcd;
+    const serialized = JSON.stringify(product);
+    if (serialized === lastSavedConfig.current) return;
+    const caseId = selectedClient.case_id;
+    const t = setTimeout(async () => {
+      setSaveState('saving');
+      try {
+        await updateCaseProductConfig(caseId, product);
+        lastSavedConfig.current = serialized;
+        setDbClients((prev) => prev.map((c) => (c.case_id === caseId ? { ...c, product_config: product } : c)));
+        setSaveState('saved');
+      } catch {
+        setSaveState('error');
+      }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [eln, cpn, dcd, productType, selectedClient?.case_id, selectedClient?.persisted]);
 
   const filteredClients = dbClients.filter((c) =>
     c.client_name.toLowerCase().includes(clientFilter.toLowerCase()) ||
@@ -460,6 +515,11 @@ const RMPage: React.FC = () => {
                 RM <span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{activeRM.legal_name}</span> ({activeRM.institution})
                 {' '}· Client <span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{profile.client_name || 'Generic'}</span>
                 {' '}· Underlying <span className="mono" style={{ color: 'var(--on-dark)' }}>{currentUnderlying}</span>
+                {selectedClient?.persisted && saveState !== 'idle' && (
+                  <span style={{ marginLeft: 8, color: saveState === 'error' ? 'var(--accent-red, #ef4444)' : 'var(--stone)' }}>
+                    · {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved to client record' : 'Save failed'}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -530,107 +590,6 @@ const RMPage: React.FC = () => {
             {/* ── LEFT COLUMN ──────────────────────────────────────────────────────── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               
-              {/* 1. Sidebar for RM Profile (Top Left) */}
-              <div className="rm-profile-card">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="rm-magenta-badge flex items-center gap-1">
-                    <UserCheck size={12} /> RM Profile
-                  </div>
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--stone)' }}>
-                    ID: {activeRM.rm_id}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: 16,
-                      color: '#fff',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {activeRM.legal_name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 15, color: '#fff' }}>
-                      {activeRM.legal_name}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--stone)' }}>
-                      {activeRM.institution}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, marginBottom: 12 }}>
-                  <div className="flex items-center justify-between pb-1 border-b border-hairline-dark">
-                    <span style={{ color: 'var(--stone)' }}>Branch</span>
-                    <span className="mono" style={{ color: '#fff' }}>{activeRM.branch_code}</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-1 border-b border-hairline-dark">
-                    <span style={{ color: 'var(--stone)' }}>Clearance</span>
-                    <span className="chip granted" style={{ fontSize: 10 }}>
-                      {activeRM.access_tier.replace(/_/g, ' ').toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span style={{ color: 'var(--stone)' }}>Jurisdiction</span>
-                    <span className="mono" style={{ color: '#fff' }}>{activeRM.operating_jurisdiction} (SEBI Reg)</span>
-                  </div>
-                </div>
-
-                {/* Authorised Products */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 6 }}>Authorised products</div>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {['ELN', 'CPN', 'DCD'].map((pt) => (
-                      <span
-                        key={pt}
-                        className="mono"
-                        style={{
-                          fontSize: 10,
-                          padding: '2px 8px',
-                          borderRadius: 9999,
-                          background: 'var(--surface-deep)',
-                          color: 'var(--on-dark-mute)',
-                          border: '1px solid var(--hairline-dark)',
-                        }}
-                      >
-                        ✓ {pt}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* RM Switching Dropdown */}
-                {rmsList.length > 0 && (
-                  <div className="form-group mb-2">
-                    <label className="form-label" style={{ fontSize: 11 }}>Switch RM profile</label>
-                    <select
-                      className="form-select form-select-sm"
-                      value={activeRM.rm_id}
-                      onChange={(e) => {
-                        const target = rmsList.find((r) => r.rm_id === e.target.value);
-                        if (target) setActiveRM(target as unknown as typeof activeRM);
-                      }}
-                    >
-                      {rmsList.map((r) => (
-                        <option key={r.rm_id} value={r.rm_id}>
-                          {r.legal_name} ({r.employee_id})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
               {/* 2. Financial Products section (Bottom Left) */}
               <div className="rm-financial-card">
                 <div style={sectionLabel} className="flex items-center gap-1">
@@ -745,9 +704,8 @@ const RMPage: React.FC = () => {
               
               {/* 1. Navigation Bar (Top Middle) */}
               <div className="rm-nav-bar">
-                <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-                  {/* Analysis Tabs */}
-                  <div className="flex gap-1" style={{ flexWrap: 'wrap' }}>
+                {/* Analysis Tabs */}
+                <div className="seg-tabs" role="tablist" aria-label="Analysis views">
                     {(
                       [
                         { key: 'payoff', label: 'Payoff Graph', icon: <TrendingUp size={13} /> },
@@ -760,36 +718,16 @@ const RMPage: React.FC = () => {
                     ).map((t) => (
                       <button
                         key={t.key}
-                        className={`btn btn-sm ${activeTab === t.key ? 'btn-primary' : 'btn-ghost'}`}
-                        style={{ height: 34, padding: '4px 12px', fontSize: 13 }}
+                        role="tab"
+                        aria-selected={activeTab === t.key}
+                        className={`seg-tab ${activeTab === t.key ? 'active' : ''}`}
                         onClick={() => !t.disabled && setActiveTab(t.key)}
                         disabled={t.disabled}
                       >
                         {t.icon}
-                        {t.label}
+                        <span>{t.label}</span>
                       </button>
                     ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    className="btn btn-outline-dark btn-sm"
-                    style={{ height: 34, padding: '4px 12px', fontSize: 13 }}
-                    onClick={() => setFullScreenView('graph')}
-                    title="Open Fullscreen Workspace View"
-                  >
-                    <Maximize2 size={13} /> Fullscreen
-                  </button>
-                  {result && (
-                    <button
-                      className="btn btn-outline-dark btn-sm"
-                      style={{ height: 34, padding: '4px 12px', fontSize: 13 }}
-                      onClick={() => navigate(`/dashboard/${result.run_id}`)}
-                    >
-                      Dashboard <ArrowUpRight size={13} />
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -810,6 +748,22 @@ const RMPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {result && (
+                      <button
+                        className="btn btn-outline-dark btn-sm"
+                        style={{
+                          height: 30,
+                          padding: '2px 10px',
+                          fontSize: 12,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/dashboard/${result.run_id}`);
+                        }}
+                      >
+                        Dashboard <ArrowUpRight size={13} />
+                      </button>
+                    )}
                     <button
                       className="btn btn-outline-dark btn-sm"
                       style={{
@@ -968,13 +922,13 @@ const RMPage: React.FC = () => {
                   <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     
                     {/* Split View: Client vs RM Reasoning preview */}
-                    <div className="grid-2" style={{ gap: 12 }}>
-                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 14 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--on-dark)', marginBottom: 8 }} className="flex items-center gap-1.5">
-                          <MessageSquare size={13} style={{ color: 'var(--accent-teal)' }} />
-                          Client rationale · {profile.client_name || 'Client'}
-                        </div>
-                        <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+                    <div className="rationale-split">
+                      <section className="rationale-col">
+                        <header className="rationale-col-head">
+                          <span className="rationale-eyebrow">Client rationale</span>
+                          <span className="rationale-who">{profile.client_name || 'Client'}</span>
+                        </header>
+                        <div className="rationale-scroll">
                           <FormattedClientReasoning
                             text={
                               result.explanation?.client_text ||
@@ -982,14 +936,14 @@ const RMPage: React.FC = () => {
                             }
                           />
                         </div>
-                      </div>
+                      </section>
 
-                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 14 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--on-dark-mute)', marginBottom: 8 }} className="flex items-center gap-1.5">
-                          <Shield size={13} style={{ color: 'var(--primary-bright)' }} />
-                          RM compliance rationale · {activeRM.legal_name}
-                        </div>
-                        <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+                      <section className="rationale-col">
+                        <header className="rationale-col-head">
+                          <span className="rationale-eyebrow">RM compliance</span>
+                          <span className="rationale-who">{activeRM.legal_name}</span>
+                        </header>
+                        <div className="rationale-scroll">
                           <FormattedRMReasoning
                             text={
                               result.explanation?.rm_text ||
@@ -997,14 +951,14 @@ const RMPage: React.FC = () => {
                             }
                           />
                         </div>
-                      </div>
+                      </section>
                     </div>
 
                     {/* Suitability Rule Indicators */}
                     {result.suitability && (
-                      <div className="flex items-center justify-between" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: '10px 14px', borderRadius: 12, flexWrap: 'wrap', gap: 10 }}>
-                        <div className="flex items-center gap-3">
-                          <span style={{ fontSize: 12, color: 'var(--stone)' }}>Key checks</span>
+                      <div className="rationale-checks">
+                        <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
+                          <span className="rationale-eyebrow">Key checks</span>
                           <RuleDot status={result.suitability.summary_flags.appetite} label="Risk Appetite" />
                           <RuleDot status={result.suitability.summary_flags.horizon} label="Horizon" />
                           <RuleDot status={result.suitability.summary_flags.affordability} label="Loss Capacity" />
@@ -1023,6 +977,14 @@ const RMPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* 4. Module 3: rule-based suitability on Module 2's real historical replay */}
+              <SuitabilityAssessmentCard
+                clientId={selectedClientId}
+                clientName={selectedClient?.client_name ?? profile.client_name}
+                persisted={!!selectedClient?.persisted}
+                product={currentProduct}
+              />
 
             </div>
 
@@ -1179,7 +1141,7 @@ const RMPage: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {/* Visual Chart Navigation */}
                 <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: 12 }}>
-                  <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                  <div className="seg-tabs" role="tablist" aria-label="Analysis views">
                     {(
                       [
                         ['payoff', 'Payoff'],
@@ -1190,7 +1152,9 @@ const RMPage: React.FC = () => {
                     ).map(([t, label]) => (
                       <button
                         key={t}
-                        className={`btn ${activeTab === t ? 'btn-primary' : 'btn-outline-dark'} btn-sm`}
+                        role="tab"
+                        aria-selected={activeTab === t}
+                        className={`seg-tab ${activeTab === t ? 'active' : ''}`}
                         onClick={() => setActiveTab(t)}
                       >
                         {label}
@@ -1291,12 +1255,7 @@ const RMPage: React.FC = () => {
                   </div>
                 )}
 
-                {result?.suitability && (
-                  <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
-                    <div className="card-title mb-3">SEBI suitability rules</div>
-                    <SuitabilityPanel suitability={result.suitability} />
-                  </div>
-                )}
+
 
                 {fixIt && (
                   <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>

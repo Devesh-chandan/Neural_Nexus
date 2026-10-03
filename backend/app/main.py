@@ -128,6 +128,7 @@ async def health() -> dict:
 from app.api import routes_market        # Phase 1
 from app.api import routes_analyze       # Phase 3/4
 from app.api import routes_simulation    # module2_simulation_engine: real historical replay
+from app.api import routes_assessment    # module3_suitability_engine: suitability on module2 output
 from app.api import routes_cases         # Phase 7
 from app.api import routes_audit         # Phase 7
 from app.api import routes_explain       # Phase 6
@@ -139,6 +140,7 @@ app.include_router(routes_auth.router, prefix="/api")
 app.include_router(routes_market.router, prefix="/api")
 app.include_router(routes_analyze.router, prefix="/api")
 app.include_router(routes_simulation.router, prefix="/api")
+app.include_router(routes_assessment.router, prefix="/api")
 app.include_router(routes_cases.router, prefix="/api")
 app.include_router(routes_audit.router, prefix="/api")
 app.include_router(routes_explain.router, prefix="/api")

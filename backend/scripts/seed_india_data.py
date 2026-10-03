@@ -10,6 +10,7 @@ import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
+load_dotenv("../.env")
 
 def api_request(
     base_url: str,

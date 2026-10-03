@@ -22,8 +22,8 @@ const Navbar: React.FC<NavbarProps> = ({ mode }) => {
     role === 'rm'
       ? user?.legal_name || 'RM'
       : role === 'client'
-      ? user?.client_name || 'Client'
-      : null;
+        ? user?.client_name || 'Client'
+        : null;
 
   const links: { to: string; label: string; end?: boolean }[] = [
     { to: '/', label: 'Home', end: true },
@@ -33,9 +33,9 @@ const Navbar: React.FC<NavbarProps> = ({ mode }) => {
     // Registration links for unauthenticated users
     ...(!role
       ? [
-          { to: '/client/register', label: 'Client KYC' },
-          { to: '/rm/register', label: 'RM Onboarding' },
-        ]
+        { to: '/client/register', label: 'Client KYC' },
+        { to: '/rm/register', label: 'RM Onboarding' },
+      ]
       : []),
   ];
 
@@ -92,19 +92,49 @@ const Navbar: React.FC<NavbarProps> = ({ mode }) => {
                     style={{ position: 'fixed', inset: 0, zIndex: 99 }}
                     onClick={() => setUserMenuOpen(false)}
                   />
-                  <div className="navbar-menu" role="menu">
-                    {/* User info header */}
-                    <div className="navbar-menu-header">
-                      <div className="navbar-menu-name">
-                        {role === 'rm' ? <Building2 size={13} /> : <User size={13} />}
-                        {displayName}
+                  <div className={`navbar-menu ${role === 'rm' ? 'navbar-menu-wide' : ''}`} role="menu">
+                    {role === 'rm' ? (
+                      <div className="navbar-menu-header">
+                        <div className="rm-menu-identity">
+                          <span className="navbar-avatar rm rm-menu-avatar" aria-hidden="true">
+                            {displayName.slice(0, 2).toUpperCase()}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div className="navbar-menu-name">{displayName}</div>
+                            <div className="navbar-menu-meta">
+                              <Building2 size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+                              {user?.institution || '—'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <dl className="rm-menu-details">
+                          <div><dt>RM ID</dt><dd className="mono">{user?.rm_id || '—'}</dd></div>
+                          <div><dt>Branch</dt><dd className="mono">{user?.branch_code || '—'}</dd></div>
+                          <div>
+                            <dt>Clearance</dt>
+                            <dd><span className="rm-menu-chip">{(user?.access_tier || '—').replace(/_/g, ' ')}</span></dd>
+                          </div>
+                          <div><dt>Jurisdiction</dt><dd className="mono">{user?.operating_jurisdiction || '—'}</dd></div>
+                          <div>
+                            <dt>Products</dt>
+                            <dd className="rm-menu-products">
+                              {(user?.authorised_product_types?.length ? user.authorised_product_types : ['ELN', 'CPN', 'DCD']).map((p) => (
+                                <span key={p} className="rm-menu-chip mono">{p}</span>
+                              ))}
+                            </dd>
+                          </div>
+                        </dl>
                       </div>
-                      <div className="navbar-menu-meta">
-                        {role === 'rm'
-                          ? [user?.institution, user?.access_tier].filter(Boolean).join(' · ')
-                          : `Case ID: ${user?.case_id || ''}`}
+                    ) : (
+                      <div className="navbar-menu-header">
+                        <div className="navbar-menu-name">
+                          <User size={13} />
+                          {displayName}
+                        </div>
+                        <div className="navbar-menu-meta">Case ID: {user?.case_id || ''}</div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Logout */}
                     <button

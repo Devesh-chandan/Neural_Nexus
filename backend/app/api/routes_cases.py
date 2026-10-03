@@ -16,7 +16,14 @@ from pydantic import BaseModel
 
 from app.core.errors import AppError
 from app.store.audit import get_audit_record
-from app.store.cases import create_case, get_case, list_cases
+from app.store.cases import (
+    create_case,
+    get_case,
+    list_cases,
+    normalize_profile,
+    update_case_product_config,
+    update_case_profile,
+)
 from app.store.db import init_db
 from app.store.runs import load_run
 
@@ -87,10 +94,39 @@ async def get_case_route(case_id: str, request: Request) -> Dict[str, Any]:
     return {
         "case_id": row["case_id"],
         "client_name": row["client_name"],
-        "profile": json.loads(row["profile_json"]),
+        "profile": normalize_profile(json.loads(row["profile_json"]), row["client_name"]),
         "created_at": row["created_at"],
         "latest_recommendation_id": row.get("latest_recommendation_id"),
+        "product_config": json.loads(row["product_config_json"]) if row.get("product_config_json") else None,
     }
+
+
+class ProductConfigUpdate(BaseModel):
+    product_config: Dict[str, Any]
+
+
+@router.put("/cases/{case_id}/product-config")
+async def update_product_config_route(
+    case_id: str, req: ProductConfigUpdate, request: Request
+) -> Dict[str, Any]:
+    row = get_case(case_id)
+    if row is None:
+        raise AppError(404, "CASE_NOT_FOUND", f"Case {case_id} not found.")
+    _ensure_case_access(row, request.state.user)
+    update_case_product_config(case_id, req.product_config)
+    return {"case_id": case_id, "product_config": req.product_config}
+
+
+@router.put("/cases/{case_id}/profile")
+async def update_profile_route(
+    case_id: str, req: CaseCreateRequest, request: Request
+) -> Dict[str, Any]:
+    row = get_case(case_id)
+    if row is None:
+        raise AppError(404, "CASE_NOT_FOUND", f"Case {case_id} not found.")
+    _ensure_case_access(row, request.state.user)
+    update_case_profile(case_id, req.profile)
+    return {"case_id": case_id, "client_name": req.profile.get("client_name"), "profile": req.profile}
 
 
 @router.get("/runs/{run_id}")

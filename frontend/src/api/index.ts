@@ -2,6 +2,7 @@ import api from './client';
 import type {
   AccessTiersResponse,
   AnalyzeResponse,
+  AssessmentResponse,
   AuditResponse,
   BranchRoster,
   BrokerProvider,
@@ -97,6 +98,22 @@ export async function runHistoricalSimulation(
   return data;
 }
 
+/**
+ * Module 3 suitability assessment: replays the product (Module 2), checks it against the
+ * client's case record with the deterministic rules, and returns client + RM explanations.
+ * `clientId` is the case ID of a registered client (e.g. CLT-IN-0001).
+ */
+export async function runAssessment(
+  clientId: string,
+  product: ProductConfig
+): Promise<AssessmentResponse> {
+  const { data } = await api.post<AssessmentResponse>('/assess', {
+    client_id: clientId,
+    product,
+  });
+  return data;
+}
+
 // ── Recommend ──────────────────────────────────────────────────────────────
 
 export async function runRecommend(
@@ -125,8 +142,24 @@ export async function createCase(profile: ClientProfile): Promise<{ case_id: str
   return data;
 }
 
-export async function fetchCases(): Promise<{ cases: Array<{ case_id: string; client_name: string; created_at: string; profile: ClientProfile }>; count: number }> {
+export async function fetchCases(): Promise<{ cases: Array<{ case_id: string; client_name: string; created_at: string; profile: ClientProfile; product_config?: ProductConfig | null }>; count: number }> {
   const { data } = await api.get('/cases');
+  return data;
+}
+
+export async function updateCaseProfile(
+  caseId: string,
+  profile: ClientProfile
+): Promise<{ case_id: string; client_name: string; profile: ClientProfile }> {
+  const { data } = await api.put(`/cases/${caseId}/profile`, { profile });
+  return data;
+}
+
+export async function updateCaseProductConfig(
+  caseId: string,
+  productConfig: ProductConfig
+): Promise<{ case_id: string; product_config: ProductConfig }> {
+  const { data } = await api.put(`/cases/${caseId}/product-config`, { product_config: productConfig });
   return data;
 }
 

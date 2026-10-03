@@ -24,6 +24,7 @@ class Settings:
     llm_provider: str = os.getenv("LLM_PROVIDER", "none").lower()
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_model: str = os.getenv("LLM_MODEL", "")
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     database_url: str = os.getenv("DATABASE_URL", "")
     db_path: str = os.getenv("DB_PATH", "data/nexus.db")
     supabase_url: str = os.getenv("SUPABASE_URL", "").rstrip("/")

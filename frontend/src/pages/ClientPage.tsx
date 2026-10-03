@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Trophy, ArrowRight } from 'lucide-react';
-import { runRecommend, createCase } from '../api';
+import { runRecommend, createCase, fetchCases, updateCaseProfile } from '../api';
 import type { ClientProfile, RecommendationResult } from '../types';
 import { LoadingOverlay, Alert, VerdictBadge, Disclaimer, StatBox } from '../components/UIKit';
 import { ProductPill } from '../components/UIKit';
@@ -37,6 +37,40 @@ const ClientPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RecommendationResult | null>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const lastSaved = useRef<string>('');
+
+  // Load the logged-in client's own case (GET /cases returns only cases they own).
+  useEffect(() => {
+    fetchCases()
+      .then((res) => {
+        const own = res.cases[0];
+        if (!own) return;
+        const loaded = { ...DEFAULT_PROFILE, ...own.profile, client_name: own.profile?.client_name || own.client_name };
+        lastSaved.current = JSON.stringify(loaded);
+        setCaseId(own.case_id);
+        setProfile(loaded);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Auto-save edits back to the client's case.
+  useEffect(() => {
+    if (!caseId) return;
+    const serialized = JSON.stringify(profile);
+    if (serialized === lastSaved.current) return;
+    const t = setTimeout(async () => {
+      setSaveState('saving');
+      try {
+        await updateCaseProfile(caseId, profile);
+        lastSaved.current = serialized;
+        setSaveState('saved');
+      } catch {
+        setSaveState('error');
+      }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [profile, caseId]);
 
   const update = useCallback(<K extends keyof ClientProfile>(key: K, value: ClientProfile[K]) => {
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -51,8 +85,14 @@ const ClientPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { case_id } = await createCase(profile);
-      setCaseId(case_id);
+      if (caseId) {
+        await updateCaseProfile(caseId, profile);
+        lastSaved.current = JSON.stringify(profile);
+      } else {
+        const { case_id } = await createCase(profile);
+        lastSaved.current = JSON.stringify(profile);
+        setCaseId(case_id);
+      }
       const rec = await runRecommend(profile);
       setResult(rec);
       setStep('results');
@@ -98,6 +138,11 @@ const ClientPage: React.FC = () => {
               <p style={{ fontSize: 16, color: 'var(--on-dark-mute)', maxWidth: 520 }}>
                 Tell us about your investment profile and we'll recommend suitable structured products.
               </p>
+              {caseId && saveState !== 'idle' && (
+                <p style={{ fontSize: 13, marginTop: 8, color: saveState === 'error' ? 'var(--accent-red, #ef4444)' : 'var(--stone)' }}>
+                  {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'All changes saved' : 'Save failed — check your connection'}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <Link to="/client/register" className="btn btn-outline-dark btn-sm">

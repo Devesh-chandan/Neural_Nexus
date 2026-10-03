@@ -148,5 +148,11 @@ def init_db() -> None:
             conn.execute("ALTER TABLE cases ADD COLUMN owner_user_id TEXT")
         except Exception:
             conn._conn.rollback()
-    
+
+    with conn:
+        try:
+            conn.execute("ALTER TABLE cases ADD COLUMN product_config_json TEXT")
+        except Exception:
+            conn._conn.rollback()
+
     conn.close()

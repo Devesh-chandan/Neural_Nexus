@@ -660,3 +660,70 @@ export interface ApiError {
   error_code: string;
   detail: string;
 }
+
+// ── Module 3: suitability assessment on Module 2's historical replay (POST /api/assess) ──
+
+export type AssessmentStatus = 'SUITABLE' | 'REVIEW_REQUIRED' | 'NOT_SUITABLE';
+export type CheckStatus = 'PASS' | 'REVIEW' | 'FAIL';
+export type AssessmentCheckKey = 'risk_appetite' | 'investment_horizon' | 'loss_tolerance' | 'concentration_risk';
+
+export interface AssessmentChecks {
+  risk_appetite: {
+    status: CheckStatus;
+    client_limit_category: string;
+    product_value_category: string;
+    structural_category: string;
+    historical_category: string;
+    worst_simulated_return_pct: number;
+    reason: string;
+  };
+  investment_horizon: { status: CheckStatus; client_limit_years: number; product_value_years: number; reason: string };
+  loss_tolerance: { status: CheckStatus; client_limit_pct: number; product_value_pct: number; reason: string };
+  concentration_risk: { status: CheckStatus; client_limit_pct: number; product_value_pct: number | null; reason: string };
+}
+
+export interface SuitabilityAssessment {
+  assessment_id: string;
+  client_id: string;
+  product_id: string;
+  simulation_run_id: string;
+  timestamp: string;
+  overall_status: AssessmentStatus;
+  checks: AssessmentChecks;
+  /** RM responses only. */
+  compliance_flags?: Record<string, { status: CheckStatus; reason: string }>;
+  /** Client responses only (compliance detail is withheld from clients). */
+  additional_checks_required?: boolean;
+  audit_meta: { engine_version: string; rule_set_version: string; note: string };
+}
+
+interface AssessmentExplanationBase {
+  headline: string;
+  summary: string;
+  checks: Record<AssessmentCheckKey, string>;
+  source: 'llm' | 'template';
+  fallback_reason: string | null;
+}
+
+export interface ClientAssessmentExplanation extends AssessmentExplanationBase {
+  next_steps: string[];
+}
+
+export interface RMAssessmentExplanation extends AssessmentExplanationBase {
+  compliance: string;
+  actions: string[];
+}
+
+export interface AssessmentResponse {
+  assessment: SuitabilityAssessment;
+  simulation: HistoricalSimulationResult;
+  data_gaps: string[];
+  explanation: {
+    client: ClientAssessmentExplanation;
+    /** RM responses only. */
+    rm?: RMAssessmentExplanation;
+    model: string | null;
+    prompt_version: string;
+  } | null;
+  disclaimer: string;
+}
