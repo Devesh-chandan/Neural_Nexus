@@ -1,0 +1,117 @@
+# Suitability rules configuration.
+# IMPORTANT: These are ILLUSTRATIVE thresholds, pending compliance review.
+# All numeric parameters are editable here. Code reads this file at startup;
+# changing values here changes suitability outcomes without code changes.
+
+# ─── Client risk appetite limits ──────────────────────────────────────────────
+appetite_limits:
+  conservative:
+    max_tier: 2
+    max_p_loss: 0.15
+  moderate:
+    max_tier: 3
+    max_p_loss: 0.30
+  aggressive:
+    max_tier: 5
+    max_p_loss: 0.55
+
+# ─── Product risk tier thresholds (from metrics) ─────────────────────────────
+# Tier 1: max_loss_pct == 0
+# Tier 2: cvar5_loss <= t2_cvar AND p_loss <= t2_p_loss
+# Tier 3: cvar5_loss <= t3_cvar
+# Tier 4: cvar5_loss <= t4_cvar
+# Tier 5: everything else
+tier_thresholds:
+  t2_cvar: 0.10       # 10%
+  t2_p_loss: 0.15     # 15%
+  t3_cvar: 0.25       # 25%
+  t4_cvar: 0.50       # 50%
+
+# ─── Rule thresholds ──────────────────────────────────────────────────────────
+rules:
+
+  R-LOSS:
+    dimension: "loss_tolerance"
+    weight: 30
+    red_condition: "stress_loss_pct > loss_tolerance_pct"
+    amber_conditions:
+      - "cvar5_loss_pct > loss_tolerance_pct"
+      - "worst_loss_pct > 1.5 * loss_tolerance_pct"
+
+  R-HORIZON:
+    dimension: "horizon"
+    weight: 20
+    red_multiplier: 1.5     # tenor_months > 1.5 * horizon_months → RED
+    amber_multiplier: 1.0   # tenor_months > horizon_months → AMBER
+    # Also RED if needs_liquidity_within_months < tenor
+
+  R-CONC:
+    dimension: "concentration"
+    weight: 20
+    red_underlying_exposure: 0.40    # post-trade underlying exposure >= 40% → RED
+    red_single_product_pct: 0.30     # single product allocation >= 30% → RED
+    amber_underlying_exposure: 0.25  # >= 25% → AMBER
+    amber_single_product_pct: 0.15   # >= 15% → AMBER
+    amber_structured_total: 0.35     # existing_structured + new >= 35% → AMBER
+
+  R-RISK:
+    dimension: "risk_appetite"
+    weight: 20
+    red_tier_excess: 1      # tier > max_tier + 1 → RED
+    # tier > max_tier or p_loss > max_p_loss → AMBER
+
+  R-COMPLEX:
+    dimension: "complexity"
+    weight: 10
+    # complexity scores
+    complexity_scores:
+      CPN: 1
+      ELN: 2
+      DCD: 3
+    # experience levels (numeric)
+    experience_levels:
+      novice: 0
+      intermediate: 1
+      experienced: 2
+    # Formula: diff = complexity - (experience_level + 1)
+    # diff >= 2 → RED; diff == 1 → AMBER
+    red_diff: 2
+    amber_diff: 1
+
+  R-FX:
+    dimension: "currency_risk"
+    weight: 0         # informational; flat penalty applied in scoring
+    flat_penalty: 3   # flat score points deducted if triggered
+    # AMBER when DCD or USD-denominated underlying for INR-currency client
+
+  R-PRICE:
+    dimension: "pricing_sanity"
+    weight: 0         # informational; flat penalty applied in scoring
+    flat_penalty: 3
+    # AMBER when pricing.flag == "coupon_above_indicative"
+
+# ─── Scoring penalties ────────────────────────────────────────────────────────
+scoring:
+  red_penalty: 1.0
+  amber_penalty: 0.4
+  green_penalty: 0.0
+
+# ─── Verdict keywords (for LLM validator) ─────────────────────────────────────
+verdict_keywords:
+  NOT_SUITABLE:
+    required_phrases: ["does not fit", "not suitable", "mismatch"]
+  CONDITIONALLY_SUITABLE:
+    required_caution_words: ["but", "however", "caution", "condition", "review", "although", "though"]
+  SUITABLE:
+    forbidden_phrases: ["does not fit", "not suitable", "mismatch"]
+
+# ─── Forbidden LLM phrases ────────────────────────────────────────────────────
+llm_forbidden_phrases:
+  - "guaranteed"
+  - "risk-free"
+  - "risk free"
+  - "no risk"
+  - "safe investment"
+  - "cannot lose"
+  - "will not lose"
+  - "100% safe"

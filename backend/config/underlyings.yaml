@@ -1,0 +1,92 @@
+# Underlyings whitelist
+# Each entry defines a supported asset that can be used as a product underlying.
+# Tickers are yfinance symbols.
+
+NIFTY50:
+  ticker: "^NSEI"
+  display_name: "Nifty 50 Index"
+  asset_class: "equity_index"
+  type: "equity_index"
+  currency: "INR"
+  sector: "broad_market"
+
+BANKNIFTY:
+  ticker: "^NSEBANK"
+  display_name: "Bank Nifty Index"
+  asset_class: "equity_index"
+  type: "equity_index"
+  currency: "INR"
+  sector: "financials"
+
+RELIANCE:
+  ticker: "RELIANCE.NS"
+  display_name: "Reliance Industries"
+  asset_class: "equity"
+  type: "equity"
+  currency: "INR"
+  sector: "energy_conglomerate"
+
+TCS:
+  ticker: "TCS.NS"
+  display_name: "Tata Consultancy Services"
+  asset_class: "equity"
+  type: "equity"
+  currency: "INR"
+  sector: "technology"
+
+HDFCBANK:
+  ticker: "HDFCBANK.NS"
+  display_name: "HDFC Bank"
+  asset_class: "equity"
+  type: "equity"
+  currency: "INR"
+  sector: "financials"
+
+SP500:
+  ticker: "^GSPC"
+  display_name: "S&P 500 Index"
+  asset_class: "equity_index"
+  type: "equity_index"
+  currency: "USD"
+  sector: "broad_market"
+
+AAPL:
+  ticker: "AAPL"
+  display_name: "Apple Inc."
+  asset_class: "equity"
+  type: "equity"
+  currency: "USD"
+  sector: "technology"
+
+USDINR:
+  ticker: "USDINR=X"
+  display_name: "USD / INR"
+  asset_class: "fx"
+  type: "fx"
+  currency: "INR"
+  sector: "currency"
+  base_currency: "USD"
+  alt_currency: "INR"
+  quote_description: "quoted INR per USD"
+
+EURINR:
+  ticker: "EURINR=X"
+  display_name: "EUR / INR"
+  asset_class: "fx"
+  type: "fx"
+  currency: "INR"
+  sector: "currency"
+  base_currency: "EUR"
+  alt_currency: "INR"
+  quote_description: "quoted INR per EUR"
+
+USDJPY:
+  ticker: "USDJPY=X"
+  display_name: "USD / JPY"
+  asset_class: "fx"
+  type: "fx"
+  currency: "JPY"
+  sector: "currency"
+  base_currency: "USD"
+  alt_currency: "JPY"
+  quote_description: "quoted JPY per USD"

@@ -1,0 +1,149 @@
+# Products configuration: defaults, parameter bounds, grids, stress shocks, rates.
+# NOTE: Suitability thresholds are in suitability_rules.yaml.
+
+# ─── Global financial constants ───────────────────────────────────────────────
+risk_free_rates:
+  INR: 0.065   # 6.5% p.a.
+  USD: 0.045   # 4.5% p.a.
+  EUR: 0.035
+  JPY: 0.001
+
+fd_baseline_rate: 0.070   # 7.0% p.a., illustrative fixed deposit comparison
+
+issuer_margin_haircut: 0.15   # 15% of option premium goes to issuer costs/margin
+
+# ─── Stress shocks (per asset class) ──────────────────────────────────────────
+stress_shocks:
+  equity: -0.30        # –30% shock for equity / equity_index underlyings
+  equity_index: -0.30
+  fx: 0.15             # +15% FX rate shock (adverse for DCD client = base appreciates)
+
+# ─── Scenario table shocks (applied to S0) ────────────────────────────────────
+scenario_shocks: [-0.30, -0.20, -0.10, 0.0, 0.10, 0.20]
+
+# ─── ELN defaults and bounds ──────────────────────────────────────────────────
+ELN:
+  defaults:
+    barrier_pct: 0.75
+    coupon_pa: 0.10
+    coupon_conditional: false
+    barrier_monitoring: "maturity"
+    tenor_months: 12
+    principal: 1000000
+    currency: "INR"
+
+  bounds:
+    tenor_months_min: 3
+    tenor_months_max: 36
+    barrier_pct_min: 0.40
+    barrier_pct_max: 0.95
+    coupon_pa_min: 0.00
+    coupon_pa_max: 0.40
+    principal_min: 1
+
+  # Recommender grids
+  grids:
+    tenors: [6, 12, 18, 24]
+    barriers: [0.60, 0.65, 0.70, 0.75, 0.80]
+    # coupon is set to indicative coupon rounded down to nearest 0.25%
+    coupon_step: 0.0025
+
+  complexity: 2   # for R-COMPLEX rule
+
+# ─── CPN defaults and bounds ──────────────────────────────────────────────────
+CPN:
+  defaults:
+    protection_pct: 1.00
+    participation_pct: 0.80
+    cap_pct: null
+    tenor_months: 24
+    principal: 1000000
+    currency: "INR"
+
+  bounds:
+    tenor_months_min: 3
+    tenor_months_max: 36
+    protection_pct_min: 0.80
+    protection_pct_max: 1.00
+    participation_pct_min: 0.10
+    participation_pct_max: 2.00
+    principal_min: 1
+
+  grids:
+    tenors: [12, 24, 36]
+    protections: [0.90, 0.95, 1.00]
+    caps: [null, 0.30]
+    # participation set to affordable from pricing model, step 5%
+    participation_step: 0.05
+
+  complexity: 1
+
+# ─── DCD defaults and bounds ──────────────────────────────────────────────────
+DCD:
+  defaults:
+    interest_pa: 0.08
+    tenor_months: 6
+    principal: 100000
+    currency: "USD"
+
+  bounds:
+    tenor_months_min: 3
+    tenor_months_max: 36
+    interest_pa_min: 0.00
+    interest_pa_max: 0.30
+    principal_min: 1
+
+  grids:
+    tenors: [3, 6, 12]
+    strike_offsets: [1.02, 1.04, 1.06]   # strike = spot * offset
+    # interest set to indicative, step 0.25%
+    interest_step: 0.0025
+
+  complexity: 3
+
+# ─── Payoff curve x-range ─────────────────────────────────────────────────────
+payoff_curve:
+  equity_x_min: 0.40
+  equity_x_max: 1.60
+  fx_x_min: 0.80
+  fx_x_max: 1.25
+  n_points: 101
+
+# ─── Monte Carlo ──────────────────────────────────────────────────────────────
+monte_carlo:
+  n_paths: 2000
+  block_size: 10
+  seed: 42
+  demean: true
+  fan_percentiles: [5, 25, 50, 75, 95]
+  fan_n_points: 30
+
+# ─── Historical replay ────────────────────────────────────────────────────────
+replay:
+  trading_days_per_month: 21
+  histogram_bins: 20
+  cvar_tail_pct: 0.05   # worst 5%
+
+# ─── Crisis preset start dates ────────────────────────────────────────────────
+crisis_presets:
+  GFC:
+    start: "2008-01-02"
+    label: "GFC (2008)"
+  COVID:
+    start: "2020-01-15"
+    label: "COVID Crash (2020)"
+  SLUMP_2022:
+    start: "2021-12-31"
+    label: "2022 Slump"
+  INR_DEPRECIATION_2013:
+    start: "2013-05-01"
+    label: "INR Depreciation (2013)"
+    fx_only: true
+
+# ─── Candidate cap ────────────────────────────────────────────────────────────
+recommendation:
+  max_candidates: 300
+  target_time_seconds: 5
+  return_score_scale_pp: 6.0   # +6 percentage points above FD baseline = 100 return score
+  target_return_bonus_max: 10.0
+  target_return_tolerance_pp: 1.0
