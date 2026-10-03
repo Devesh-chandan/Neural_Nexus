@@ -183,14 +183,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
 
   return (
     <form onSubmit={onSubmit} aria-label="Client profile questionnaire" noValidate>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0,1fr) 300px',
-          gap: 24,
-          alignItems: 'start',
-        }}
-      >
+      <div className="reg-layout">
         {/* Left: form sections */}
         <div>
           {/* Personal Details */}
@@ -390,12 +383,12 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
                   type="number"
                   min={1}
                   max={120}
-                  placeholder="Leave blank if not applicable"
+                  placeholder="Optional"
                   value={profile.needs_liquidity_within_months ?? ''}
                   onChange={(e) =>
                     update('needs_liquidity_within_months', e.target.value ? +e.target.value : null)
                   }
-                  style={{ maxWidth: 220 }}
+                  style={{ maxWidth: 320 }}
                 />
               </div>
             </div>
@@ -405,7 +398,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
         </div>
 
         {/* Right: sticky summary */}
-        <div style={{ position: 'sticky', top: 80 }}>
+        <div className="reg-aside">
           <div className="card" style={{ marginBottom: 16 }}>
             <div
               style={{

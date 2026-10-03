@@ -48,7 +48,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <AreaChart data={data} margin={{ top: 22, right: 24, left: 0, bottom: 16 }}>
         <defs>
           <linearGradient id="payoffGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
@@ -65,7 +65,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
           tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
           stroke="var(--stone)"
           tick={{ fontSize: 11 }}
-          label={{ value: 'Underlying Level', position: 'insideBottom', offset: -4, fontSize: 11, fill: 'var(--stone)' }}
+          label={{ value: 'Underlying Level', position: 'insideBottom', offset: -12, fontSize: 11, fill: 'var(--stone)' }}
         />
         <YAxis
           tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
@@ -111,7 +111,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             y={fdBaseline * 100}
             stroke="var(--accent-warning)"
             strokeDasharray="5 3"
-            label={{ value: 'FD Baseline', fontSize: 10, fill: 'var(--accent-warning)', position: 'right' }}
+            label={{ value: 'FD', fontSize: 10, fill: 'var(--accent-warning)', position: 'insideTopRight' }}
           />
         )}
         <Area
@@ -206,14 +206,14 @@ export const MCFanChart: React.FC<MCFanChartProps> = ({ mc, height = 240 }) => {
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
         <XAxis
           dataKey="t"
           tickFormatter={(v) => `${v}%`}
           tick={{ fontSize: 10 }}
           stroke="var(--stone)"
-          label={{ value: 'Time (% of tenor)', position: 'insideBottom', offset: -4, fontSize: 11, fill: 'var(--stone)' }}
+          label={{ value: 'Time (% of tenor)', position: 'insideBottom', offset: -12, fontSize: 11, fill: 'var(--stone)' }}
         />
         <YAxis
           tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
@@ -329,21 +329,21 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({ metrics }) => {
     <div className="stat-grid">
       <StatBox
         label="Max Gain"
-        value={`+${metrics.max_gain_pct.toFixed(1)}%`}
+        value={`+${(metrics.max_gain_pct * 100).toFixed(1)}%`}
         color="positive"
         subtext="Total return"
       />
       <StatBox
         label="Max Loss"
-        value={`${metrics.max_loss_pct.toFixed(1)}%`}
+        value={`${(metrics.max_loss_pct * 100).toFixed(1)}%`}
         color="negative"
         subtext="Total return"
       />
       <StatBox
         label="Stress Loss"
-        value={`${metrics.stress_loss_pct.toFixed(1)}%`}
+        value={`${(metrics.stress_loss_pct * 100).toFixed(1)}%`}
         color="negative"
-        subtext="-40% shock scenario"
+        subtext="Configured stress shock"
       />
       {statsSource && (
         <>
@@ -355,7 +355,7 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({ metrics }) => {
           />
           <StatBox
             label="CVaR 5%"
-            value={`${statsSource.cvar5_loss_pct.toFixed(1)}%`}
+            value={`${(statsSource.cvar5_loss_pct * 100).toFixed(1)}%`}
             color="negative"
             subtext="Tail loss"
           />
@@ -405,7 +405,7 @@ export const ScenarioTable: React.FC<ScenarioTableProps> = ({ rows, principal })
         {rows.map((row, i) => {
           const isPositive = row.net_return >= 0;
           return (
-            <tr key={i} style={row.is_ps_scenario ? { background: 'rgba(59,130,246,0.04)' } : {}}>
+            <tr key={i} style={row.is_ps_scenario ? { background: 'rgba(73,79,223,0.06)' } : {}}>
               <td style={{ fontWeight: row.is_ps_scenario ? 600 : 400 }}>
                 {row.label}
                 {row.is_ps_scenario && (
@@ -416,7 +416,7 @@ export const ScenarioTable: React.FC<ScenarioTableProps> = ({ rows, principal })
                 {row.shock > 0 ? '+' : ''}{(row.shock * 100).toFixed(0)}%
               </td>
               <td>{(row.x * 100).toFixed(1)}%</td>
-              <td className="mono">{principal > 0 ? (row.final * principal).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : (row.final * 100).toFixed(1) + '%'}</td>
+              <td className="mono">{principal > 0 ? row.final.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}</td>
               <td className={isPositive ? 'text-green' : 'text-red'}>
                 {isPositive ? '+' : ''}{(row.net_return * 100).toFixed(2)}%
               </td>

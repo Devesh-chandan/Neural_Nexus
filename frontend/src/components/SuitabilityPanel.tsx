@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { SuitabilityResult, RuleResult } from '../types';
 import { VerdictBadge, RuleDot, ScoreRing, ProgressBar } from './UIKit';
 
@@ -17,6 +18,9 @@ const DIMENSION_LABELS: Record<string, string> = {
   concentration: 'Concentration',
   appetite: 'Risk Appetite',
   complexity: 'Product Complexity',
+  life_stage: 'Life Stage',
+  affordability: 'Affordability',
+  kyc_aml: 'KYC / AML',
 };
 
 const SuitabilityPanel: React.FC<SuitabilityPanelProps> = ({
@@ -30,7 +34,7 @@ const SuitabilityPanel: React.FC<SuitabilityPanelProps> = ({
   return (
     <div className="card animate-in" aria-label="Suitability analysis results">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4" style={{ gap: 16 }}>
+      <div className="flex items-center justify-between mb-4" style={{ gap: 16, flexWrap: "wrap" }}>
         <div>
           <div className="card-title">Suitability Assessment</div>
           <div className="card-subtitle">
@@ -44,14 +48,12 @@ const SuitabilityPanel: React.FC<SuitabilityPanelProps> = ({
       </div>
 
       {/* Summary flags */}
-      <div className="stat-grid" style={{ marginBottom: 20 }}>
+      <div className="flex flex-wrap gap-2" style={{ marginBottom: 20 }}>
         {Object.entries(summary_flags).map(([key, status]) => (
-          <div key={key} className="stat-box" style={{ padding: '10px 12px' }}>
-            <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <RuleDot status={status} />
-              {DIMENSION_LABELS[key] ?? key}
-            </div>
-          </div>
+          <span key={key} className="chip" style={{ fontSize: 12, padding: '6px 12px', gap: 8 }}>
+            <RuleDot status={status} />
+            {DIMENSION_LABELS[key] ?? key.replace(/_/g, ' ')}
+          </span>
         ))}
       </div>
 
@@ -146,13 +148,13 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, open, onToggle }) => {
       ? 'rgba(226,59,74,0.3)'
       : rule.status === 'AMBER'
       ? 'rgba(236,126,0,0.3)'
-      : 'rgba(0,168,126,0.2)';
+      : 'var(--hairline-dark)';
 
   return (
     <div
       style={{
         border: `1px solid ${borderColor}`,
-        borderRadius: 8,
+        borderRadius: 12,
         overflow: 'hidden',
         transition: 'all 0.2s',
       }}
@@ -162,15 +164,13 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, open, onToggle }) => {
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={`rule-${rule.rule_id}`}
-        style={{ padding: '10px 14px', width: '100%', border: 'none', background: 'none', cursor: 'pointer' }}
+        style={{ padding: '12px 14px', width: '100%', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', gap: 12 }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3" style={{ minWidth: 0 }}>
           <RuleDot status={rule.status} />
-          <span style={{ fontSize: 13, color: 'var(--on-dark-mute)' }}>{rule.message}</span>
+          <span style={{ fontSize: 13, color: 'var(--on-dark-mute)', lineHeight: 1.5 }}>{rule.message}</span>
         </div>
-        <span className={`accordion-chevron ${open ? 'open' : ''}`} aria-hidden="true" style={{ fontSize: 12 }}>
-          ▼
-        </span>
+        <ChevronDown size={16} className={`accordion-chevron ${open ? 'open' : ''}`} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--stone)' }} />
       </button>
       {open && (
         <div
@@ -179,11 +179,11 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, open, onToggle }) => {
           role="region"
           aria-label={`Details for rule ${rule.rule_id}`}
         >
-          <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 8 }}>
-            Rule: <span className="mono">{rule.rule_id}</span> · Dimension: {rule.dimension}
+          <div style={{ fontSize: 12, color: 'var(--stone)', marginBottom: 8 }}>
+            Rule <span className="mono">{rule.rule_id}</span> · {DIMENSION_LABELS[rule.dimension] ?? rule.dimension}
           </div>
           {Object.keys(rule.facts).length > 0 && (
-            <table className="data-table" style={{ fontSize: 11 }}>
+            <div style={{ overflowX: 'auto' }}><table className="data-table" style={{ fontSize: 12 }}>
               <tbody>
                 {Object.entries(rule.facts).map(([k, v]) => (
                   <tr key={k}>
@@ -192,7 +192,7 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, open, onToggle }) => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}

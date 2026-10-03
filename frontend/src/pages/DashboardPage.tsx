@@ -203,7 +203,7 @@ const DashboardPage: React.FC = () => {
         <div className="page-container">
           <div
             className="stat-grid"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', borderRadius: 0 }}
+            style={{ borderRadius: 0 }}
           >
             <StatBox
               label="Product"
@@ -222,8 +222,8 @@ const DashboardPage: React.FC = () => {
               })}`}
               subtext={(product as { currency: string }).currency}
             />
-            <StatBox label="Max Gain" value={`+${metrics.max_gain_pct.toFixed(1)}%`} color="positive" />
-            <StatBox label="Max Loss" value={`${metrics.max_loss_pct.toFixed(1)}%`} color="negative" />
+            <StatBox label="Max Gain" value={`+${(metrics.max_gain_pct * 100).toFixed(1)}%`} color="positive" />
+            <StatBox label="Max Loss" value={`${(metrics.max_loss_pct * 100).toFixed(1)}%`} color="negative" />
             <StatBox
               label="FD Baseline"
               value={`+${(metrics.fd_baseline.annualised_return * 100).toFixed(1)}%`}
@@ -273,13 +273,7 @@ const DashboardPage: React.FC = () => {
             {/* ── Overview ──────────────────────────────────────────────── */}
             {activeTab === 'overview' && (
               <div className="animate-in">
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 20,
-                  }}
-                >
+                <div className="grid-2" style={{ gap: 20, alignItems: 'start' }}>
                   {/* Left */}
                   <div>
                     <div className="card mb-4">
@@ -292,7 +286,7 @@ const DashboardPage: React.FC = () => {
                         <tbody>
                           {Object.entries(product).map(([k, v]) => (
                             <tr key={k}>
-                              <td className="stat-label" style={{ width: 160 }}>{k}</td>
+                              <td className="stat-label" style={{ width: 180 }}>{k.replace(/_/g, ' ')}</td>
                               <td className="mono" style={{ fontSize: 13 }}>{String(v)}</td>
                             </tr>
                           ))}
@@ -376,7 +370,7 @@ const DashboardPage: React.FC = () => {
                   />
                   <StatBox
                     label="Worst Loss"
-                    value={`${metrics.replay.worst_loss_pct.toFixed(1)}%`}
+                    value={`${(metrics.replay.worst_loss_pct * 100).toFixed(1)}%`}
                     color="negative"
                   />
                   <StatBox
@@ -388,7 +382,7 @@ const DashboardPage: React.FC = () => {
                   />
                   <StatBox
                     label="CVaR 5%"
-                    value={`${metrics.replay.cvar5_loss_pct.toFixed(1)}%`}
+                    value={`${(metrics.replay.cvar5_loss_pct * 100).toFixed(1)}%`}
                     color="negative"
                     subtext="Tail loss"
                   />
@@ -513,7 +507,7 @@ const DashboardPage: React.FC = () => {
                   />
                   <StatBox
                     label="CVaR 5%"
-                    value={`${metrics.monte_carlo.cvar5_loss_pct.toFixed(1)}%`}
+                    value={`${(metrics.monte_carlo.cvar5_loss_pct * 100).toFixed(1)}%`}
                     color="negative"
                     subtext="Expected tail loss"
                   />
@@ -528,7 +522,7 @@ const DashboardPage: React.FC = () => {
                   />
                   <StatBox
                     label="Worst Loss"
-                    value={`${metrics.monte_carlo.worst_loss_pct.toFixed(1)}%`}
+                    value={`${(metrics.monte_carlo.worst_loss_pct * 100).toFixed(1)}%`}
                     color="negative"
                   />
                   <StatBox label="Paths" value={metrics.monte_carlo.n_paths.toLocaleString()} />
@@ -550,7 +544,7 @@ const DashboardPage: React.FC = () => {
 
             {/* ── Explanation ───────────────────────────────────────────── */}
             {activeTab === 'explanation' && explanation && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div className="grid-2 animate-in" style={{ gap: 20, alignItems: 'start' }}>
                 <ExplanationCard explanation={explanation} audience="client" />
                 <ExplanationCard explanation={explanation} audience="rm" />
               </div>

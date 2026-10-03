@@ -258,6 +258,15 @@ const RMPage: React.FC = () => {
   // Full Screen Modal State
   const [fullScreenView, setFullScreenView] = useState<'none' | 'graph' | 'reasoning'>('none');
 
+  useEffect(() => {
+    if (fullScreenView === 'none') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullScreenView('none');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullScreenView]);
+
   // Load Underlyings & Registered DB Clients / RMs
   useEffect(() => {
     fetchUnderlyings().then((r) => setUnderlyings(r.underlyings)).catch(() => {});
@@ -416,17 +425,17 @@ const RMPage: React.FC = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <ProductPill type={productType} />
-                <span className="mono" style={{ fontSize: 13, color: 'var(--primary-bright)', fontWeight: 600 }}>
-                  RM WORKSPACE
+                <span style={{ fontSize: 12, color: 'var(--stone)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  RM Workspace
                 </span>
               </div>
               <h1 className="display-lg" style={{ color: 'var(--on-dark)', marginBottom: 8 }}>
-                Structured Product Structuring & Suitability Engine
+                Structuring &amp; Suitability
               </h1>
               <div style={{ fontSize: 13, color: 'var(--stone)' }}>
-                Active RM: <span className="mono" style={{ color: '#fff' }}>{activeRM.legal_name}</span> ({activeRM.institution})
-                {' '}· Client: <span className="mono" style={{ color: '#fff' }}>{profile.client_name || 'Generic'}</span>
-                {' '}· Underlying: <span className="mono" style={{ color: '#fff' }}>{currentUnderlying}</span>
+                RM <span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{activeRM.legal_name}</span> ({activeRM.institution})
+                {' '}· Client <span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{profile.client_name || 'Generic'}</span>
+                {' '}· Underlying <span className="mono" style={{ color: 'var(--on-dark)' }}>{currentUnderlying}</span>
               </div>
             </div>
 
@@ -440,7 +449,7 @@ const RMPage: React.FC = () => {
               )}
 
               <Link to="/rm/register" className="btn btn-outline-dark btn-sm">
-                <UserCog size={14} /> RM Onboarding & Clearance →
+                <UserCog size={14} /> Onboarding &amp; Clearance
               </Link>
             </div>
           </div>
@@ -452,10 +461,10 @@ const RMPage: React.FC = () => {
         <div className="page-container" style={{ maxWidth: 1440 }}>
           <div
             className="stat-grid"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', borderRadius: 0 }}
+            style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderBottom: 'none' }}
           >
             <StatBox
-              label="Product Structure"
+              label="Product"
               value={productType}
               subtext={currentUnderlying}
             />
@@ -464,18 +473,18 @@ const RMPage: React.FC = () => {
               value={`${currentProduct.tenor_months}m`}
             />
             <StatBox
-              label="Principal Ticket"
+              label="Principal"
               value={`₹${(currentProduct.principal / 100000).toFixed(1)}L`}
               subtext={currentProduct.currency}
             />
             <StatBox
               label="Max Gain"
-              value={result ? `+${result.metrics.max_gain_pct.toFixed(1)}%` : '—'}
+              value={result ? `+${(result.metrics.max_gain_pct * 100).toFixed(1)}%` : '—'}
               color="positive"
             />
             <StatBox
               label="Max Loss"
-              value={result ? `${result.metrics.max_loss_pct.toFixed(1)}%` : '—'}
+              value={result ? `${(result.metrics.max_loss_pct * 100).toFixed(1)}%` : '—'}
               color="negative"
             />
             <StatBox
@@ -501,7 +510,7 @@ const RMPage: React.FC = () => {
               <div className="rm-profile-card">
                 <div className="flex items-center justify-between mb-2">
                   <div className="rm-magenta-badge flex items-center gap-1">
-                    <UserCheck size={12} /> Sidebar for RM Profile
+                    <UserCheck size={12} /> RM Profile
                   </div>
                   <span className="mono" style={{ fontSize: 11, color: 'var(--stone)' }}>
                     ID: {activeRM.rm_id}
@@ -514,14 +523,14 @@ const RMPage: React.FC = () => {
                       width: 44,
                       height: 44,
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, var(--primary) 0%, #e040b4 100%)',
+                      background: 'var(--primary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 700,
                       fontSize: 16,
                       color: '#fff',
-                      boxShadow: '0 4px 12px rgba(73,79,223,0.3)',
+                      flexShrink: 0,
                     }}
                   >
                     {activeRM.legal_name.slice(0, 2).toUpperCase()}
@@ -538,24 +547,24 @@ const RMPage: React.FC = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, marginBottom: 12 }}>
                   <div className="flex items-center justify-between pb-1 border-b border-hairline-dark">
-                    <span style={{ color: 'var(--stone)' }}>Branch:</span>
+                    <span style={{ color: 'var(--stone)' }}>Branch</span>
                     <span className="mono" style={{ color: '#fff' }}>{activeRM.branch_code}</span>
                   </div>
                   <div className="flex items-center justify-between pb-1 border-b border-hairline-dark">
-                    <span style={{ color: 'var(--stone)' }}>Clearance:</span>
+                    <span style={{ color: 'var(--stone)' }}>Clearance</span>
                     <span className="chip granted" style={{ fontSize: 10 }}>
                       {activeRM.access_tier.replace(/_/g, ' ').toUpperCase()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span style={{ color: 'var(--stone)' }}>Jurisdiction:</span>
+                    <span style={{ color: 'var(--stone)' }}>Jurisdiction</span>
                     <span className="mono" style={{ color: '#fff' }}>{activeRM.operating_jurisdiction} (SEBI Reg)</span>
                   </div>
                 </div>
 
                 {/* Authorised Products */}
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 4 }}>Authorised Products:</div>
+                  <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 6 }}>Authorised products</div>
                   <div className="flex gap-1.5 flex-wrap">
                     {['ELN', 'CPN', 'DCD'].map((pt) => (
                       <span
@@ -564,10 +573,10 @@ const RMPage: React.FC = () => {
                         style={{
                           fontSize: 10,
                           padding: '2px 8px',
-                          borderRadius: 4,
-                          background: 'rgba(73,79,223,0.2)',
-                          color: '#a5b4fc',
-                          border: '1px solid rgba(73,79,223,0.3)',
+                          borderRadius: 9999,
+                          background: 'var(--surface-deep)',
+                          color: 'var(--on-dark-mute)',
+                          border: '1px solid var(--hairline-dark)',
                         }}
                       >
                         ✓ {pt}
@@ -579,10 +588,9 @@ const RMPage: React.FC = () => {
                 {/* RM Switching Dropdown */}
                 {rmsList.length > 0 && (
                   <div className="form-group mb-2">
-                    <label className="form-label" style={{ fontSize: 11 }}>Switch RM Profile:</label>
+                    <label className="form-label" style={{ fontSize: 11 }}>Switch RM profile</label>
                     <select
                       className="form-select form-select-sm"
-                      style={{ fontSize: 12, height: 36, padding: '4px 8px' }}
                       value={activeRM.rm_id}
                       onChange={(e) => {
                         const target = rmsList.find((r) => r.rm_id === e.target.value);
@@ -601,13 +609,13 @@ const RMPage: React.FC = () => {
 
               {/* 2. Financial Products section (Bottom Left) */}
               <div className="rm-financial-card">
-                <div style={{ ...sectionLabel, color: '#a5b4fc' }} className="flex items-center gap-1">
-                  <Layers size={13} /> Financial Products Section
+                <div style={sectionLabel} className="flex items-center gap-1">
+                  <Layers size={13} /> Product Builder
                 </div>
 
                 {/* Product type selector */}
-                <div className="card mb-3" style={{ padding: 12, background: 'rgba(0,0,0,0.3)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 6 }}>Select Structure:</div>
+                <div className="card mb-3" style={{ padding: 14, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 6 }}>Structure</div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {(['ELN', 'CPN', 'DCD'] as const).map((pt) => (
                       <button
@@ -624,12 +632,12 @@ const RMPage: React.FC = () => {
                 </div>
 
                 {/* Underlying Asset */}
-                <div className="card mb-3" style={{ padding: 12, background: 'rgba(0,0,0,0.3)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 6 }}>Underlying Asset:</div>
+                <div className="card mb-3" style={{ padding: 14, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 6 }}>Underlying</div>
                   <select
                     id="underlying-select"
                     className="form-select"
-                    style={{ height: 42, fontSize: 13 }}
+                    style={{ height: 42, fontSize: 13, paddingTop: 0, paddingBottom: 0 }}
                     value={currentUnderlying}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -671,9 +679,9 @@ const RMPage: React.FC = () => {
                 </div>
 
                 {/* Product Parameters Form */}
-                <div className="card mb-3" style={{ padding: 12, background: 'rgba(0,0,0,0.3)' }}>
+                <div className="card mb-3" style={{ padding: 14, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                   <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 8 }}>
-                    {productType} Parameters:
+                    {productType} parameters
                   </div>
                   {productType === 'ELN' && <ELNForm config={eln} onChange={setEln} />}
                   {productType === 'CPN' && <CPNForm config={cpn} onChange={setCpn} />}
@@ -689,15 +697,15 @@ const RMPage: React.FC = () => {
                       onChange={(e) => setIncludeMC(e.target.checked)}
                       style={{ accentColor: 'var(--primary)', width: 14, height: 14 }}
                     />
-                    <span style={{ color: 'var(--on-dark-mute)' }}>Monte Carlo Simulation (2000 paths)</span>
+                    <span style={{ color: 'var(--on-dark-mute)' }}>Include Monte Carlo simulation (2,000 paths)</span>
                   </label>
                 </div>
 
                 {/* Run Analysis Action */}
                 <button
                   id="analyze-btn"
-                  className="btn btn-cobalt"
-                  style={{ height: 46, fontSize: 15, width: '100%', justifyContent: 'center' }}
+                  className="btn btn-primary"
+                  style={{ fontSize: 15, width: '100%', justifyContent: 'center' }}
                   onClick={handleAnalyze}
                   disabled={loading}
                 >
@@ -714,11 +722,6 @@ const RMPage: React.FC = () => {
               {/* 1. Navigation Bar (Top Middle) */}
               <div className="rm-nav-bar">
                 <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-                  <div className="card-title" style={{ fontSize: 15, margin: 0, fontWeight: 700, color: '#fff' }}>
-                    Navigation Bar
-                  </div>
-                  <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.2)' }} />
-                  
                   {/* Analysis Tabs */}
                   <div className="flex gap-1" style={{ flexWrap: 'wrap' }}>
                     {(
@@ -733,8 +736,8 @@ const RMPage: React.FC = () => {
                     ).map((t) => (
                       <button
                         key={t.key}
-                        className={`btn btn-sm ${activeTab === t.key ? 'btn-cobalt' : 'btn-ghost'}`}
-                        style={{ height: 32, padding: '4px 10px', fontSize: 12 }}
+                        className={`btn btn-sm ${activeTab === t.key ? 'btn-primary' : 'btn-ghost'}`}
+                        style={{ height: 34, padding: '4px 12px', fontSize: 13 }}
                         onClick={() => !t.disabled && setActiveTab(t.key)}
                         disabled={t.disabled}
                       >
@@ -748,7 +751,7 @@ const RMPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     className="btn btn-outline-dark btn-sm"
-                    style={{ height: 32, padding: '4px 10px', fontSize: 12 }}
+                    style={{ height: 34, padding: '4px 12px', fontSize: 13 }}
                     onClick={() => setFullScreenView('graph')}
                     title="Open Fullscreen Workspace View"
                   >
@@ -757,7 +760,7 @@ const RMPage: React.FC = () => {
                   {result && (
                     <button
                       className="btn btn-outline-dark btn-sm"
-                      style={{ height: 32, padding: '4px 10px', fontSize: 12 }}
+                      style={{ height: 34, padding: '4px 12px', fontSize: 13 }}
                       onClick={() => navigate(`/dashboard/${result.run_id}`)}
                     >
                       Dashboard <ArrowUpRight size={13} />
@@ -777,13 +780,12 @@ const RMPage: React.FC = () => {
               >
                 <div className="rm-green-header">
                   <div className="flex items-center gap-2">
-                    <span className="rm-green-badge">Main Analysis Graph</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
-                      {productType} – {currentUnderlying} ({activeTab.toUpperCase()})
+                    <span className="rm-green-badge">Analysis</span>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--on-dark)' }}>
+                      {productType} · {currentUnderlying}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span style={{ fontSize: 11, color: 'var(--stone)' }}>Click anywhere to expand ⛶</span>
                     <button
                       className="btn btn-outline-dark btn-sm"
                       style={{
@@ -805,9 +807,9 @@ const RMPage: React.FC = () => {
                   <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--stone)' }}>
                     <BarChart3 size={48} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
                     <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
-                      Main Analysis Graph Preview Area
+                      No analysis yet
                     </div>
-                    <div style={{ fontSize: 13 }}>Click "Run Full Analysis" to render interactive graph curves</div>
+                    <div style={{ fontSize: 13 }}>Configure a product and select Run Full Analysis to see payoff charts.</div>
                   </div>
                 )}
 
@@ -815,9 +817,9 @@ const RMPage: React.FC = () => {
                   <div onClick={(e) => e.stopPropagation()}>
                     {/* Active Chart Display */}
                     {activeTab === 'payoff' && (
-                      <div className="card" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,168,126,0.3)', padding: 14 }}>
-                        <div className="card-title mb-1" style={{ fontSize: 14, color: 'var(--accent-teal)' }}>
-                          Payoff Curve Preview
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16 }}>
+                        <div className="card-title mb-1" style={{ fontSize: 14 }}>
+                          Payoff at maturity
                         </div>
                         <PayoffChart
                           curve={result.metrics.payoff_curve}
@@ -830,25 +832,25 @@ const RMPage: React.FC = () => {
                     )}
 
                     {activeTab === 'scenarios' && (
-                      <div className="card" style={{ background: 'rgba(0,0,0,0.4)', padding: 14 }}>
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16 }}>
                         <ScenarioTable rows={result.metrics.scenario_table} principal={getProduct().principal} />
                       </div>
                     )}
 
                     {activeTab === 'replay' && result.metrics.replay && (
-                      <div className="card" style={{ background: 'rgba(0,0,0,0.4)', padding: 14 }}>
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16 }}>
                         <HistogramChart bins={result.metrics.replay.histogram} title="Return Distribution (Replay)" />
                       </div>
                     )}
 
                     {activeTab === 'mc' && result.metrics.monte_carlo && (
-                      <div className="card" style={{ background: 'rgba(0,0,0,0.4)', padding: 14 }}>
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16 }}>
                         <MCFanChart mc={result.metrics.monte_carlo} height={220} />
                       </div>
                     )}
 
                     {(activeTab === 'suitability' || activeTab === 'explanation') && (
-                      <div className="card" style={{ background: 'rgba(0,0,0,0.4)', padding: 14 }}>
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16 }}>
                         <PayoffChart
                           curve={result.metrics.payoff_curve}
                           breakEven={result.metrics.break_even_x}
@@ -871,13 +873,12 @@ const RMPage: React.FC = () => {
                 <div className="rm-purple-header">
                   <div className="flex items-center gap-2">
                     <span className="rm-purple-badge flex items-center gap-1">
-                      <Sparkles size={11} /> LLM Reasoning for both Client & RM
+                      <Sparkles size={11} /> AI Rationale
                     </span>
                     {result?.suitability && <VerdictBadge verdict={result.suitability.verdict} />}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span style={{ fontSize: 11, color: 'var(--stone)' }}>Click to expand ⛶</span>
                     <button
                       className="btn btn-outline-dark btn-sm"
                       style={{
@@ -898,8 +899,8 @@ const RMPage: React.FC = () => {
                 {!result && !loading && (
                   <div style={{ padding: '24px 16px', color: 'var(--stone)', textAlign: 'center' }}>
                     <MessageSquare size={36} style={{ opacity: 0.3, margin: '0 auto 8px' }} />
-                    <div style={{ fontSize: 14, color: '#fff' }}>LLM Trade Reasoning Preview Bar</div>
-                    <div style={{ fontSize: 12 }}>Contains automated AI rationale, SEBI compliance rules, and suitability evaluation</div>
+                    <div style={{ fontSize: 14, color: 'var(--on-dark)' }}>Rationale will appear here</div>
+                    <div style={{ fontSize: 12 }}>Client and RM explanations, SEBI rule checks and the suitability verdict.</div>
                   </div>
                 )}
 
@@ -908,10 +909,10 @@ const RMPage: React.FC = () => {
                     
                     {/* Split View: Client vs RM Reasoning preview */}
                     <div className="grid-2" style={{ gap: 12 }}>
-                      <div className="card" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--hairline-dark)', padding: 12 }}>
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 14 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--on-dark)', marginBottom: 8 }} className="flex items-center gap-1.5">
                           <MessageSquare size={13} style={{ color: 'var(--accent-teal)' }} />
-                          👤 Client Rationale ({profile.client_name || 'Client'})
+                          Client rationale · {profile.client_name || 'Client'}
                         </div>
                         <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
                           <FormattedClientReasoning
@@ -923,10 +924,10 @@ const RMPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="card" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--hairline-dark)', padding: 12 }}>
+                      <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 14 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--on-dark-mute)', marginBottom: 8 }} className="flex items-center gap-1.5">
                           <Shield size={13} style={{ color: 'var(--primary-bright)' }} />
-                          👔 RM Compliance Rationale ({activeRM.legal_name})
+                          RM compliance rationale · {activeRM.legal_name}
                         </div>
                         <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
                           <FormattedRMReasoning
@@ -941,9 +942,9 @@ const RMPage: React.FC = () => {
 
                     {/* Suitability Rule Indicators */}
                     {result.suitability && (
-                      <div className="flex items-center justify-between" style={{ background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: 8 }}>
+                      <div className="flex items-center justify-between" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: '10px 14px', borderRadius: 12, flexWrap: 'wrap', gap: 10 }}>
                         <div className="flex items-center gap-3">
-                          <span style={{ fontSize: 11, color: 'var(--stone)' }}>Key Suitability Checks:</span>
+                          <span style={{ fontSize: 12, color: 'var(--stone)' }}>Key checks</span>
                           <RuleDot status={result.suitability.summary_flags.appetite} label="Risk Appetite" />
                           <RuleDot status={result.suitability.summary_flags.horizon} label="Horizon" />
                           <RuleDot status={result.suitability.summary_flags.affordability} label="Loss Capacity" />
@@ -951,7 +952,7 @@ const RMPage: React.FC = () => {
 
                         <button
                           className="btn btn-outline-dark btn-sm"
-                          style={{ height: 26, fontSize: 11, padding: '0 8px' }}
+                          style={{ height: 32, fontSize: 12, padding: '0 12px' }}
                           onClick={handleFixIt}
                           disabled={fixLoading}
                         >
@@ -969,27 +970,26 @@ const RMPage: React.FC = () => {
             <div className="rm-magenta-card">
               <div className="rm-magenta-header">
                 <div>
-                  <div className="rm-magenta-badge mb-1">
-                    Client selection side panel
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--on-dark)' }}>
+                    Clients
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
-                    Registered Clients (DB)
-                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--stone)' }}>Select a client to load their profile</div>
                 </div>
                 <span className="mono" style={{ fontSize: 11, color: 'var(--stone)', background: 'var(--divider-soft)', padding: '2px 8px', borderRadius: 10 }}>
-                  {filteredClients.length} DB records
+                  {filteredClients.length} records
                 </span>
               </div>
 
               {/* Client Search Bar */}
               <div className="form-group mb-3">
                 <div style={{ position: 'relative' }}>
-                  <Search size={14} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--stone)' }} />
+                  <Search size={14} style={{ position: 'absolute', left: 14, top: 13, color: 'var(--stone)' }} />
                   <input
                     type="text"
                     className="form-input"
-                    style={{ height: 38, paddingLeft: 34, fontSize: 12 }}
-                    placeholder="Search client by name or risk..."
+                    style={{ height: 40, paddingLeft: 36, fontSize: 13 }}
+                    aria-label="Search clients"
+                    placeholder="Search by name, case ID or risk…"
                     value={clientFilter}
                     onChange={(e) => setClientFilter(e.target.value)}
                   />
@@ -1040,14 +1040,15 @@ const RMPage: React.FC = () => {
               </div>
 
               {/* Active Client Details & Input Panel */}
-              <div className="card" style={{ background: 'rgba(0,0,0,0.4)', padding: 14, border: '1px solid var(--hairline-dark)' }}>
+              <div className="card" style={{ background: 'var(--surface-deep)', padding: 16, border: '1px solid var(--hairline-dark)' }}>
                 <div className="flex items-center justify-between mb-2">
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--stone)', textTransform: 'uppercase' }}>
-                    Active Client Profile Inputs
+                    Client profile
                   </span>
                   <button
                     className="btn btn-ghost btn-sm"
-                    style={{ height: 22, padding: '0 6px', fontSize: 10, color: 'var(--accent-teal)' }}
+                    style={{ height: 26, padding: '0 10px', fontSize: 11, color: withProfile ? 'var(--accent-teal)' : 'var(--stone)' }}
+                    aria-pressed={withProfile}
                     onClick={() => setWithProfile(!withProfile)}
                   >
                     {withProfile ? '✓ Enabled' : 'Disabled'}
@@ -1076,7 +1077,7 @@ const RMPage: React.FC = () => {
                   }
                 }}
               >
-                <Plus size={14} /> Register New Client to DB
+                <Plus size={14} /> Add client
               </button>
 
             </div>
@@ -1094,25 +1095,22 @@ const RMPage: React.FC = () => {
           <div className={`rm-fullscreen-dialog ${fullScreenView === 'graph' ? 'green-theme' : 'purple-theme'}`}>
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-hairline-dark">
-              <div className="flex items-center gap-3">
-                <span
-                  className={fullScreenView === 'graph' ? 'rm-green-badge' : 'rm-purple-badge'}
-                  style={{ fontSize: 12, padding: '6px 14px' }}
-                >
-                  {fullScreenView === 'graph' ? 'MAIN ANALYSIS GRAPH – FULL SCREEN PREVIEW' : 'LLM REASONING & SUITABILITY – FULL SCREEN'}
+            <div className="flex items-center justify-between pb-3 border-b" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
+                <span className={fullScreenView === 'graph' ? 'rm-green-badge' : 'rm-purple-badge'}>
+                  {fullScreenView === 'graph' ? 'Analysis' : 'Rationale & Suitability'}
                 </span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
-                  {productType} on {currentUnderlying} | Client: {profile.client_name || 'Generic'}
+                <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--on-dark)' }}>
+                  {productType} on {currentUnderlying} · {profile.client_name || 'Generic'}
                 </span>
               </div>
 
               <button
                 className="btn btn-outline-dark btn-sm"
-                style={{ height: 38, padding: '0 16px', fontSize: 13, borderColor: '#fff' }}
                 onClick={() => setFullScreenView('none')}
+                aria-label="Close full screen (Esc)"
               >
-                <X size={16} /> Close Fullscreen (Esc)
+                <X size={16} /> Close
               </button>
             </div>
 
@@ -1120,15 +1118,22 @@ const RMPage: React.FC = () => {
             {fullScreenView === 'graph' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {/* Visual Chart Navigation */}
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    {(['payoff', 'scenarios', 'replay', 'mc'] as const).map((t) => (
+                <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: 12 }}>
+                  <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                    {(
+                      [
+                        ['payoff', 'Payoff'],
+                        ['scenarios', 'Scenarios'],
+                        ['replay', 'Replay'],
+                        ['mc', 'Monte Carlo'],
+                      ] as const
+                    ).map(([t, label]) => (
                       <button
                         key={t}
-                        className={`btn ${activeTab === t ? 'btn-cobalt' : 'btn-outline-dark'} btn-sm`}
+                        className={`btn ${activeTab === t ? 'btn-primary' : 'btn-outline-dark'} btn-sm`}
                         onClick={() => setActiveTab(t)}
                       >
-                        {t.toUpperCase()}
+                        {label}
                       </button>
                     ))}
                   </div>
@@ -1141,8 +1146,8 @@ const RMPage: React.FC = () => {
                     <MetricsSummary metrics={result.metrics} />
 
                     {activeTab === 'payoff' && (
-                      <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
-                        <div className="card-title mb-2">High-Resolution Payoff Curve & Break-Even Analysis</div>
+                      <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
+                        <div className="card-title mb-2">Payoff curve &amp; break-even</div>
                         <PayoffChart
                           curve={result.metrics.payoff_curve}
                           breakEven={result.metrics.break_even_x}
@@ -1154,20 +1159,20 @@ const RMPage: React.FC = () => {
                     )}
 
                     {activeTab === 'scenarios' && (
-                      <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
+                      <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                         <ScenarioTable rows={result.metrics.scenario_table} principal={getProduct().principal} />
                       </div>
                     )}
 
                     {activeTab === 'mc' && result.metrics.monte_carlo && (
-                      <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
-                        <div className="card-title mb-2">Monte Carlo Simulation Fan Chart (2,000 Stochastic Paths)</div>
+                      <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
+                        <div className="card-title mb-2">Monte Carlo fan chart (2,000 paths)</div>
                         <MCFanChart mc={result.metrics.monte_carlo} height={400} />
                       </div>
                     )}
 
                     {activeTab === 'replay' && result.metrics.replay && (
-                      <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
+                      <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                         <HistogramChart bins={result.metrics.replay.histogram} title="Historical Replay Return Distribution" />
                       </div>
                     )}
@@ -1181,27 +1186,27 @@ const RMPage: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {result?.explanation && (
                   <div className="grid-2" style={{ gap: 20 }}>
-                    <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
+                    <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                       <ExplanationCard explanation={result.explanation} audience="client" />
                     </div>
-                    <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
+                    <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                       <ExplanationCard explanation={result.explanation} audience="rm" />
                     </div>
                   </div>
                 )}
 
                 {result?.suitability && (
-                  <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
-                    <div className="card-title mb-3">SEBI Regulatory & Suitability Rules Audit</div>
+                  <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
+                    <div className="card-title mb-3">SEBI suitability rules</div>
                     <SuitabilityPanel suitability={result.suitability} />
                   </div>
                 )}
 
                 {fixIt && (
-                  <div className="card" style={{ padding: 24, background: 'rgba(0,0,0,0.5)' }}>
+                  <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                     <div className="card-title mb-3 flex items-center gap-2">
                       <Wrench size={18} style={{ color: 'var(--accent-teal)' }} />
-                      Fix-It Parameter Adjustments Engine
+                      Fix-it suggestions
                     </div>
                     {fixIt.suggestions.map((s, i) => (
                       <div key={i} className="mb-3 pb-3 border-b border-hairline-dark">
