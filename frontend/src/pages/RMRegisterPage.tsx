@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, Building2, CheckCircle2, Info, Lock, ShieldCheck, UserCog } from 'lucide-react';
+import { Briefcase, Building2, CheckCircle2, Lock, UserCog } from 'lucide-react';
 
 import {
   fetchAccessTiers,
@@ -15,7 +15,7 @@ import type {
   JurisdictionInfo,
   RMSRegistrationResponse,
 } from '../types';
-import { Alert, Disclaimer, Spinner } from '../components/UIKit';
+import { Alert, Spinner } from '../components/UIKit';
 import {
   InlineValidation,
   KeyValueRow,
@@ -493,7 +493,7 @@ const RMRegisterPage: React.FC = () => {
                 <div className="animate-in">
                   <SectionCard
                     title="Regulatory information (compliance)"
-                    subtitle="Your registration number is checked against the format the regulator issues in your jurisdiction. In production this would be verified live against the public register."
+                    subtitle="Your registration number is checked against the format the regulator issues in your jurisdiction."
                   >
                     <div className="grid-2">
                       <SelectField<Jurisdiction>
@@ -570,8 +570,7 @@ const RMRegisterPage: React.FC = () => {
                         })}
                       </div>
                       <div className="form-hint" style={{ marginTop: 8 }}>
-                        Greyed-out structures are blocked by the jurisdiction matrix. The server
-                        re-checks this list on submission and clamps anything not permitted.
+                        Greyed-out structures are not permitted in the selected jurisdiction.
                       </div>
                     </div>
                   </SectionCard>
@@ -730,8 +729,8 @@ const RMRegisterPage: React.FC = () => {
                 </div>
               </div>
 
-              {tierInfo && (
-                <div className="card" style={{ marginBottom: 16 }}>
+              {tierInfo && step !== 2 && (
+                <div className="card">
                   <div className="stat-label" style={{ marginBottom: 12 }}>
                     Permissions
                   </div>
@@ -756,14 +755,6 @@ const RMRegisterPage: React.FC = () => {
                   </div>
                 </div>
               )}
-
-              <Alert variant="info" className="mb-4">
-                <strong>Least privilege is enforced by the server.</strong> Hiding a button in the
-                UI is never the control — every finalise request is re-checked against your tier on
-                the backend and denied attempts are written to the audit log.
-              </Alert>
-
-              <Disclaimer text="Supabase email/password authentication is enabled. The regulator register is not queried; do not enter a real regulatory registration number." />
             </aside>
           </div>
         </div>
@@ -943,30 +934,7 @@ const RegisteredCard: React.FC<{
         </button>
       </div>
 
-      <p
-        style={{
-          fontSize: 13,
-          color: 'var(--stone)',
-          marginTop: 16,
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-        }}
-      >
-        <ShieldCheck size={14} aria-hidden="true" />
-        <span>
-          Keep <span className="mono">{rm.rm_id}</span> — it is the only credential in this demo.
-        </span>
-      </p>
     </div>
-
-    <Alert variant="info" className="mb-4">
-      <Info size={14} style={{ display: 'inline', verticalAlign: '-2px' }} aria-hidden="true" />{' '}
-      In production the workspace would request this clearance from SSO on every request rather than
-      accepting an identifier from the browser.
-    </Alert>
-
-    <Disclaimer />
   </div>
 );
 

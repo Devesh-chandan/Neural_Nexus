@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
   Download,
   ShieldCheck,
   Target,
   CheckCircle2,
-  Info,
   Lock,
   Mail,
   Eye,
@@ -43,6 +42,7 @@ import {
 } from '../components/Form';
 import { Stepper, WizardNav, type WizardStep } from '../components/Wizard';
 import { useAuth } from '../hooks/useAuth';
+import { humanize } from '../lib/format';
 
 // ── Steps ───────────────────────────────────────────────────────────────────
 
@@ -393,7 +393,7 @@ const ClientRegisterPage: React.FC = () => {
     setRecommending(true);
     setError(null);
     try {
-      const rec = await runRecommend(registered.profile);
+      const rec = await runRecommend(registered.profile, registered.case_id);
       setRecommendation(rec);
     } catch (err: unknown) {
       const e = err as { detail?: string };
@@ -423,7 +423,7 @@ const ClientRegisterPage: React.FC = () => {
   })();
 
   const nextDisabled = (() => {
-    if (step === 0) return mode === null;
+    if (step === 0) return mode === null || (mode === 'broker' && !imported);
     if (step === 1) return Object.keys(validateIdentity(form)).length > 0;
     if (step === 2) return Object.keys(validateFinancials(form)).length > 0;
     if (step === 3)
@@ -532,6 +532,19 @@ const ClientRegisterPage: React.FC = () => {
                       title="Import from KYC"
                       subtitle="We only request read-only scopes. Risk appetite, horizon, loss tolerance and concentration are never imported — those must come from you."
                     >
+                      {providers.length > 0 && providers.every((p) => !p.connected) && (
+                        <Alert variant="info" className="mb-3">
+                          No broker connector is live yet, so KYC can't be imported automatically.{' '}
+                          <button
+                            type="button"
+                            className="btn btn-outline-dark btn-sm"
+                            onClick={handleManual}
+                            style={{ marginLeft: 6 }}
+                          >
+                            Register manually
+                          </button>
+                        </Alert>
+                      )}
                       {providers.length === 0 && (
                         <Alert variant="info">
                           Could not load the provider list. Is the backend running? You can still{' '}
@@ -553,13 +566,15 @@ const ClientRegisterPage: React.FC = () => {
                             type="button"
                             className={`picker-card ${provider === p.key ? 'selected' : ''}`}
                             onClick={() => setProvider(p.key)}
+                            disabled={!p.connected}
+                            title={p.connected ? undefined : 'Not connected yet'}
                             aria-pressed={provider === p.key}
                             id={`provider-${p.key}`}
                           >
                             <span style={{ minWidth: 0 }}>
                               <span className="picker-title">{p.label}</span>
                               <span className="picker-desc">
-                                {p.category} · {p.auth}
+                                {p.category} · {p.auth}{p.connected ? '' : ' · not connected'}
                               </span>
                               <span
                                 style={{
@@ -674,7 +689,7 @@ const ClientRegisterPage: React.FC = () => {
                         value={form.national_tax_id}
                         onChange={(v) => set('national_tax_id', v.toUpperCase())}
                         placeholder="e.g. ABCDE1234V or XXXX1234"
-                        hint="Optional in this demo; masked values accepted. Mandatory in production for fraud controls."
+                        hint="Optional. Masked values are accepted."
                         maxLength={32}
                         mono
                       />
@@ -858,7 +873,7 @@ const ClientRegisterPage: React.FC = () => {
 
                   <SectionCard
                     title="Create portal login"
-                    subtitle="Create a Supabase-authenticated account to access the client portal. All fields are required."
+                    subtitle="Create an account to access the client portal. All fields are required."
                   >
                     <div className="grid-2">
                       <div className="form-group">
@@ -938,7 +953,7 @@ const ClientRegisterPage: React.FC = () => {
                             {showPortalPasswordConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                           </button>
                         </div>
-                        {form.portal_password !== form.portal_password_confirm && (
+                        {form.portal_password_confirm.length > 0 && form.portal_password !== form.portal_password_confirm && (
                           <div style={{ fontSize: 11, color: 'var(--accent-danger)', marginTop: 4 }}>Passwords do not match</div>
                         )}
                       </div>
@@ -1018,8 +1033,7 @@ const ClientRegisterPage: React.FC = () => {
               {step < 4 && (
                 <WizardNav
                   onBack={step > 0 ? () => goTo(step - 1) : undefined}
-                  onNext={step === 0 ? () => (mode === 'manual' ? handleManual() : undefined) : goNext}
-                  nextLabel={step === 0 ? 'Continue' : 'Continue'}
+                  onNext={step === 0 ? () => (mode === 'manual' ? handleManual() : goNext()) : goNext}
                   loading={step === 0 && mode === 'broker' ? importing : false}
                   loadingLabel="Importing…"
                   nextDisabled={!stepValid || nextDisabled}
@@ -1066,7 +1080,7 @@ const ClientRegisterPage: React.FC = () => {
                   />
                   <KeyValueRow
                     label="Risk"
-                    value={form.risk_appetite}
+                    value={humanize(form.risk_appetite)}
                   />
                   <KeyValueRow
                     label="Horizon"
@@ -1089,9 +1103,7 @@ const ClientRegisterPage: React.FC = () => {
                 </Alert>
               )}
 
-              <Disclaimer
-                text="Illustrative decision support, not investment advice. Nothing you enter here is sent to a real identity provider or broker."
-              />
+
             </aside>
           </div>
         </div>
@@ -1117,7 +1129,7 @@ const ReviewBlock: React.FC<{
       <div className="grid-2" style={{ gap: 10 }}>
         <KeyValueRow label="Legal name" value={form.legal_name || '—'} />
         <KeyValueRow label="Date of birth" value={form.date_of_birth || '—'} />
-        <KeyValueRow label="Employment" value={form.employment_status} />
+        <KeyValueRow label="Employment" value={humanize(form.employment_status)} />
         <KeyValueRow label="Tax ID" value={form.national_tax_id || 'Not provided'} />
       </div>
     </div>
@@ -1132,7 +1144,7 @@ const ReviewBlock: React.FC<{
         <KeyValueRow label="Investment amount" value={inr(form.investment_amount)} />
         <KeyValueRow
           label="Source of funds"
-          value={form.source_of_funds ?? 'Not declared'}
+          value={form.source_of_funds ? humanize(form.source_of_funds) : 'Not declared'}
         />
       </div>
     </div>
@@ -1142,7 +1154,7 @@ const ReviewBlock: React.FC<{
         Suitability <LockTag>PS locked</LockTag>
       </div>
       <div className="grid-2" style={{ gap: 10 }}>
-        <KeyValueRow label="Risk appetite" value={form.risk_appetite} />
+        <KeyValueRow label="Risk appetite" value={humanize(form.risk_appetite)} />
         <KeyValueRow label="Horizon" value={`${form.investment_horizon_years} years`} />
         <KeyValueRow label="Loss tolerance" value={`${form.loss_tolerance_pct}%`} />
         <KeyValueRow
@@ -1201,17 +1213,22 @@ const RegisteredSummary: React.FC<{
       )}
 
       {!recommendation ? (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onFindProducts}
-          disabled={recommending}
-          aria-busy={recommending}
-          id="reg-find-products-btn"
-        >
-          {recommending ? <Spinner size={16} label="Analysing…" /> : <Target size={16} />}
-          {recommending ? 'Analysing your profile…' : 'Find suitable products'}
-        </button>
+        <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={onFindProducts}
+            disabled={recommending}
+            aria-busy={recommending}
+            id="reg-find-products-btn"
+          >
+            {recommending ? <Spinner size={16} label="Analysing…" /> : <Target size={16} />}
+            {recommending ? 'Analysing your profile…' : 'Find suitable products'}
+          </button>
+          <Link to="/client" className="btn btn-outline-dark" id="reg-open-portal-btn">
+            Open my portal
+          </Link>
+        </div>
       ) : (
         <div>
           <div className="flex items-center justify-between mb-4" style={{ flexWrap: 'wrap', gap: 12 }}>
@@ -1279,14 +1296,8 @@ const RegisteredSummary: React.FC<{
         </div>
       )}
 
-      {recommending && (
-        <p style={{ fontSize: 13, color: 'var(--stone)', marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Info size={14} aria-hidden="true" />
-          Evaluating the product grid against your suitability answers.
-        </p>
-      )}
     </div>
 
-    <Disclaimer />
+    {recommendation && <Disclaimer text={recommendation.disclaimer} />}
   </div>
 );

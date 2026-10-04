@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -16,31 +16,33 @@ import {
   Maximize2,
   X,
   Search,
-  Plus,
   Layers,
   Sparkles,
+  Send,
 } from 'lucide-react';
 import {
   runAnalysis,
   fetchUnderlyings,
   fetchMarketHistory,
-  runSuitabilityOnly,
+  fetchProductDefaults,
   runFixIt,
   runHistoricalSimulation,
   fetchCases,
   updateCaseProductConfig,
+  checkProductAuthorised,
 } from '../api';
 
 import type {
+  AssessmentStatus,
   ClientProfile,
   ELNConfig,
   CPNConfig,
   DCDConfig,
   ProductConfig,
+  ProductDefaults,
   UnderlyingMeta,
   AnalyzeResponse,
   FixItResponse,
-  SuitabilityResult,
   HistoricalSimulationResult,
 } from '../types';
 import {
@@ -50,7 +52,6 @@ import {
   Disclaimer,
   Spinner,
   ProductPill,
-  ScoreRing,
   StatBox,
 } from '../components/UIKit';
 import {
@@ -64,126 +65,75 @@ import {
 } from '../components/Charts';
 import ExplanationCard, { FormattedClientReasoning, FormattedRMReasoning } from '../components/ExplanationCard';
 import SuitabilityAssessmentCard from '../components/SuitabilityAssessmentCard';
+import { compactAmount, currencySymbol } from '../lib/format';
 
-const DEFAULT_ELN: ELNConfig = {
-  product_type: 'ELN',
-  underlying: 'NIFTY50',
-  tenor_months: 12,
-  principal: 1_000_000,
-  currency: 'INR',
-  barrier_pct: 0.75,
-  coupon_pa: 0.12,
-  coupon_conditional: false,
-  barrier_monitoring: 'maturity',
+type ProductType = ProductConfig['product_type'];
+const PRODUCT_TYPES: ProductType[] = ['ELN', 'CPN', 'DCD'];
+
+const fitsProduct = (pt: ProductType, u: UnderlyingMeta) =>
+  pt === 'DCD' ? u.asset_class === 'fx' : u.asset_class !== 'fx';
+
+/** First configured DCD strike offset above spot (products.yaml grids.strike_offsets). */
+function dcdStrike(u: UnderlyingMeta, d?: ProductDefaults): number | null {
+  const offsets = (d?.grids.strike_offsets as number[] | undefined) ?? [];
+  if (u.latest_price == null || offsets.length === 0) return null;
+  return +(u.latest_price * offsets[0]).toFixed(4);
+}
+
+/**
+ * Starting terms for a product type: the products.yaml defaults on the first underlying
+ * with live data, denominated in that underlying's currency. A DCD strike starts from the
+ * latest spot rate.
+ */
+function initialConfig(pt: ProductType, d: ProductDefaults, u: UnderlyingMeta): ProductConfig | null {
+  const v = d.defaults as Record<string, never>;
+  if (pt === 'ELN') {
+    return {
+      product_type: 'ELN', underlying: u.key, currency: u.currency,
+      tenor_months: v.tenor_months, principal: v.principal, barrier_pct: v.barrier_pct,
+      coupon_pa: v.coupon_pa, coupon_conditional: v.coupon_conditional, barrier_monitoring: v.barrier_monitoring,
+    };
+  }
+  if (pt === 'CPN') {
+    return {
+      product_type: 'CPN', underlying: u.key, currency: u.currency,
+      tenor_months: v.tenor_months, principal: v.principal, protection_pct: v.protection_pct,
+      participation_pct: v.participation_pct, cap_pct: v.cap_pct ?? null,
+    };
+  }
+  const strike = dcdStrike(u, d);
+  if (strike == null || !u.base_currency || !u.alt_currency) return null;
+  return {
+    product_type: 'DCD', underlying: u.key, currency: u.base_currency,
+    base_currency: u.base_currency, alt_currency: u.alt_currency,
+    tenor_months: v.tenor_months, principal: v.principal, interest_pa: v.interest_pa, strike,
+  };
+}
+
+/** Re-point terms at another underlying, keeping currencies (and a DCD strike) consistent with it. */
+function withUnderlying(p: ProductConfig, u: UnderlyingMeta, d?: ProductDefaults): ProductConfig {
+  if (p.product_type === 'DCD') {
+    return {
+      ...p,
+      underlying: u.key,
+      currency: u.base_currency ?? p.currency,
+      base_currency: u.base_currency ?? p.base_currency,
+      alt_currency: u.alt_currency ?? p.alt_currency,
+      strike: dcdStrike(u, d) ?? p.strike,
+    };
+  }
+  return { ...p, underlying: u.key, currency: u.currency };
+}
+
+/** Key-order independent comparison of two sets of terms. */
+const canonical = (p: object) =>
+  JSON.stringify(Object.fromEntries(Object.entries(p).sort(([a], [b]) => a.localeCompare(b))));
+
+const M3_TO_BADGE: Record<AssessmentStatus, string> = {
+  SUITABLE: 'SUITABLE',
+  REVIEW_REQUIRED: 'CONDITIONALLY_SUITABLE',
+  NOT_SUITABLE: 'NOT_SUITABLE',
 };
-
-const DEFAULT_CPN: CPNConfig = {
-  product_type: 'CPN',
-  underlying: 'NIFTY50',
-  tenor_months: 12,
-  principal: 1_000_000,
-  currency: 'INR',
-  protection_pct: 0.90,
-  participation_pct: 0.80,
-  cap_pct: null,
-};
-
-const DEFAULT_DCD: DCDConfig = {
-  product_type: 'DCD',
-  underlying: 'USDINR',
-  tenor_months: 6,
-  principal: 1_000_000,
-  currency: 'INR',
-  strike: 84.0,
-  interest_pa: 0.10,
-  base_currency: 'INR',
-  alt_currency: 'USD',
-};
-
-const DEFAULT_PROFILE: ClientProfile = {
-  client_name: 'Priya Sharma',
-  risk_appetite: 'moderate',
-  horizon_months: 12,
-  loss_tolerance_pct: 20,
-  investable_assets: 10_000_000,
-  investment_amount: 1_000_000,
-  existing_exposure_underlying_pct: 5,
-  existing_structured_pct: 10,
-  experience: 'intermediate',
-  age_years: 38,
-};
-
-// Seed clients for DB listing and quick selection
-const DEFAULT_CLIENTS: Array<{ case_id: string; client_name: string; created_at: string; profile: ClientProfile }> = [
-  {
-    case_id: 'CL-101',
-    client_name: 'Priya Sharma',
-    created_at: '2026-10-01T10:00:00Z',
-    profile: {
-      client_name: 'Priya Sharma',
-      risk_appetite: 'moderate',
-      horizon_months: 12,
-      loss_tolerance_pct: 20,
-      investable_assets: 10000000,
-      investment_amount: 1000000,
-      existing_exposure_underlying_pct: 5,
-      existing_structured_pct: 10,
-      experience: 'intermediate',
-      age_years: 38,
-    },
-  },
-  {
-    case_id: 'CL-102',
-    client_name: 'Rajesh Patel',
-    created_at: '2026-10-02T11:30:00Z',
-    profile: {
-      client_name: 'Rajesh Patel',
-      risk_appetite: 'conservative',
-      horizon_months: 24,
-      loss_tolerance_pct: 10,
-      investable_assets: 25000000,
-      investment_amount: 2500000,
-      existing_exposure_underlying_pct: 0,
-      existing_structured_pct: 0,
-      experience: 'novice',
-      age_years: 52,
-    },
-  },
-  {
-    case_id: 'CL-103',
-    client_name: 'Anita Desai',
-    created_at: '2026-10-02T14:15:00Z',
-    profile: {
-      client_name: 'Anita Desai',
-      risk_appetite: 'aggressive',
-      horizon_months: 18,
-      loss_tolerance_pct: 35,
-      investable_assets: 15000000,
-      investment_amount: 3000000,
-      existing_exposure_underlying_pct: 12,
-      existing_structured_pct: 15,
-      experience: 'experienced',
-      age_years: 44,
-    },
-  },
-  {
-    case_id: 'CL-104',
-    client_name: 'Vikram Malhotra',
-    created_at: '2026-10-03T09:20:00Z',
-    profile: {
-      client_name: 'Vikram Malhotra',
-      risk_appetite: 'moderate',
-      horizon_months: 36,
-      loss_tolerance_pct: 25,
-      investable_assets: 50000000,
-      investment_amount: 5000000,
-      existing_exposure_underlying_pct: 8,
-      existing_structured_pct: 5,
-      experience: 'experienced',
-      age_years: 49,
-    },
-  },
-];
 
 type ClientRow = {
   case_id: string;
@@ -191,7 +141,6 @@ type ClientRow = {
   created_at: string;
   profile: ClientProfile;
   product_config?: ProductConfig | null;
-  persisted?: boolean;
 };
 
 type Tab = 'payoff' | 'scenarios' | 'replay' | 'mc' | 'suitability' | 'explanation';
@@ -209,14 +158,19 @@ const sectionLabel: React.CSSProperties = {
 const RMPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const activeRM = {
+    rm_id: user?.rm_id ?? '',
+    legal_name: user?.legal_name ?? '',
+    institution: user?.institution ?? '',
+  };
 
-  const [productType, setProductType] = useState<'ELN' | 'CPN' | 'DCD'>('ELN');
-  const [eln, setEln] = useState<ELNConfig>({ ...DEFAULT_ELN });
-  const [cpn, setCpn] = useState<CPNConfig>({ ...DEFAULT_CPN });
-  const [dcd, setDcd] = useState<DCDConfig>({ ...DEFAULT_DCD });
+  const [productType, setProductType] = useState<ProductType>('ELN');
+  const [products, setProducts] = useState<Partial<Record<ProductType, ProductConfig>>>({});
+  const [defaults, setDefaults] = useState<Partial<Record<ProductType, ProductDefaults>>>({});
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   const [withProfile, setWithProfile] = useState(true);
-  const [profile, setProfile] = useState<ClientProfile>({ ...DEFAULT_PROFILE });
+  const [profile, setProfile] = useState<ClientProfile | null>(null);
 
   const [includeMC, setIncludeMC] = useState(true);
 
@@ -225,13 +179,11 @@ const RMPage: React.FC = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  // The product + client the current result was computed for.
+  const [analysedKey, setAnalysedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('payoff');
-
-  const [liveSuit, setLiveSuit] = useState<SuitabilityResult | null>(null);
-  const [suitLoading, setSuitLoading] = useState(false);
-  const liveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [fixIt, setFixIt] = useState<FixItResponse | null>(null);
   const [fixLoading, setFixLoading] = useState(false);
@@ -241,49 +193,19 @@ const RMPage: React.FC = () => {
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [historicalError, setHistoricalError] = useState<string | null>(null);
 
-  // Client Selection State (DB integration)
-  const [dbClients, setDbClients] = useState<ClientRow[]>(DEFAULT_CLIENTS);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const lastSavedConfig = useRef<string>('');
-  const [selectedClientId, setSelectedClientId] = useState<string>('CL-101');
+  // Clients (from the case store only)
+  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientFilter, setClientFilter] = useState('');
   const [loadingClients, setLoadingClients] = useState(false);
 
-  // RM Profile State — sourced from auth context, fallback for unauthenticated dev use
-  const [activeRM, setActiveRM] = useState<{
-    rm_id: string;
-    legal_name: string;
-    corporate_email: string;
-    employee_id: string;
-    institution: string;
-    branch_code: string;
-    access_tier: string;
-    operating_jurisdiction: string;
-  }>({
-    rm_id: user?.rm_id ?? '',
-    legal_name: user?.legal_name ?? 'Loading…',
-    corporate_email: user?.corporate_email ?? '',
-    employee_id: user?.employee_id ?? '',
-    institution: user?.institution ?? '',
-    branch_code: user?.branch_code ?? '',
-    access_tier: user?.access_tier ?? '',
-    operating_jurisdiction: user?.operating_jurisdiction ?? '',
-  });
+  // Recommendation to the client (RBAC-gated on the server)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [productCheck, setProductCheck] = useState<{ allowed: boolean; reason: string | null } | null>(null);
 
-  // Keep activeRM in sync with the logged-in user
-  useEffect(() => {
-    if (!user) return;
-    setActiveRM({
-      rm_id: user.rm_id ?? '',
-      legal_name: user.legal_name ?? '',
-      corporate_email: user.corporate_email ?? '',
-      employee_id: user.employee_id ?? '',
-      institution: user.institution ?? '',
-      branch_code: user.branch_code ?? '',
-      access_tier: user.access_tier ?? '',
-      operating_jurisdiction: user.operating_jurisdiction ?? '',
-    });
-  }, [user]);
+  // Module 3 verdict for the selected client and terms (the audited suitability decision)
+  const [m3Verdict, setM3Verdict] = useState<AssessmentStatus | null>(null);
 
   // Full Screen Modal State
   const [fullScreenView, setFullScreenView] = useState<'none' | 'graph' | 'reasoning'>('none');
@@ -297,49 +219,51 @@ const RMPage: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [fullScreenView]);
 
-  // Load Underlyings & Registered DB Clients / RMs
+  // Market data, product templates and the client list
   useEffect(() => {
-    fetchUnderlyings().then((r) => setUnderlyings(r.underlyings)).catch(() => {});
+    Promise.all([fetchUnderlyings(), ...PRODUCT_TYPES.map((pt) => fetchProductDefaults(pt))])
+      .then(([u, ...templates]) => {
+        const list = (u as Awaited<ReturnType<typeof fetchUnderlyings>>).underlyings;
+        const byType = Object.fromEntries(
+          PRODUCT_TYPES.map((pt, i) => [pt, templates[i] as ProductDefaults])
+        ) as Record<ProductType, ProductDefaults>;
+        setUnderlyings(list);
+        setDefaults(byType);
+        const built: Partial<Record<ProductType, ProductConfig>> = {};
+        for (const pt of PRODUCT_TYPES) {
+          const first = list.find((x) => fitsProduct(pt, x) && x.latest_price != null);
+          const config = first ? initialConfig(pt, byType[pt], first) : null;
+          if (config) built[pt] = config;
+        }
+        // Terms already loaded from a client's saved recommendation win.
+        setProducts((prev) => ({ ...built, ...prev }));
+      })
+      .catch(() => setSetupError('Could not load market data and product templates. Is the backend running?'));
 
-    // Fetch DB cases
     setLoadingClients(true);
     fetchCases()
-      .then((res) => {
-        if (res && res.cases && res.cases.length > 0) {
-          const fetched: ClientRow[] = res.cases.map((c) => ({
+      .then((res) =>
+        setClients(
+          res.cases.map((c) => ({
             case_id: c.case_id,
-            client_name: c.client_name || c.profile?.client_name || 'Registered Client',
+            client_name: c.client_name,
             created_at: c.created_at,
-            profile: c.profile && c.profile.client_name ? c.profile : { ...DEFAULT_PROFILE, client_name: c.client_name || 'Client' },
+            profile: c.profile,
             product_config: c.product_config ?? null,
-            persisted: true,
-          }));
-          const uniqueClients: typeof fetched = [];
-          const seenNames = new Set<string>();
-          for (const c of fetched) {
-            const key = c.client_name.trim().toLowerCase();
-            if (!seenNames.has(key)) {
-              seenNames.add(key);
-              uniqueClients.push(c);
-            }
-          }
-          for (const d of DEFAULT_CLIENTS) {
-            const key = d.client_name.trim().toLowerCase();
-            if (!seenNames.has(key)) {
-              seenNames.add(key);
-              uniqueClients.push(d);
-            }
-          }
-          setDbClients(uniqueClients);
-          if (fetched.length > 0) handleSelectClient(fetched[0]);
-        }
-      })
-      .catch(() => {})
+          }))
+        )
+      )
+      .catch(() => setSetupError('Could not load clients. Is the backend running?'))
       .finally(() => setLoadingClients(false));
   }, []);
 
-  const currentUnderlying =
-    productType === 'ELN' ? eln.underlying : productType === 'CPN' ? cpn.underlying : dcd.underlying;
+  const product = products[productType] ?? null;
+  const currentUnderlying = product?.underlying ?? '';
+  const selectedClient = clients.find((c) => c.case_id === selectedClientId) ?? null;
+  const analysisKey = JSON.stringify({ product, case: selectedClientId, withProfile });
+  const resultIsCurrent = !!result && analysedKey === analysisKey;
+
+  const setProduct = (p: ProductConfig) => setProducts((prev) => ({ ...prev, [p.product_type]: p }));
 
   useEffect(() => {
     if (!currentUnderlying) return;
@@ -351,43 +275,24 @@ const RMPage: React.FC = () => {
       .finally(() => setLoadingHistory(false));
   }, [currentUnderlying]);
 
-  const triggerLiveSuit = useCallback(() => {
-    if (!withProfile || !profile.client_name) return;
-    if (liveTimer.current) clearTimeout(liveTimer.current);
-    liveTimer.current = setTimeout(async () => {
-      setSuitLoading(true);
-      try {
-        const product = productType === 'ELN' ? eln : productType === 'CPN' ? cpn : dcd;
-        const res = await runSuitabilityOnly({ product: product as ProductConfig, profile });
-        setLiveSuit(res.suitability ?? null);
-      } catch {
-        // silently ignore
-      } finally {
-        setSuitLoading(false);
-      }
-    }, 600);
-  }, [withProfile, profile, productType, eln, cpn, dcd]);
-
+  // Server-side check: may this RM configure this product type in their jurisdiction?
   useEffect(() => {
-    triggerLiveSuit();
+    if (!activeRM.rm_id) {
+      setProductCheck(null);
+      return;
+    }
+    let cancelled = false;
+    checkProductAuthorised(activeRM.rm_id, productType)
+      .then((r) => !cancelled && setProductCheck({ allowed: r.allowed, reason: r.reason }))
+      .catch(() => !cancelled && setProductCheck(null));
     return () => {
-      if (liveTimer.current) clearTimeout(liveTimer.current);
+      cancelled = true;
     };
-  }, [eln, cpn, dcd, profile, withProfile, triggerLiveSuit]);
-
-  // Run initial analysis automatically on mount or when client changes
-  useEffect(() => {
-    handleAnalyze();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedClientId]);
-
-  const getProduct = (): ProductConfig => {
-    if (productType === 'ELN') return eln;
-    if (productType === 'CPN') return cpn;
-    return dcd;
-  };
+  }, [activeRM.rm_id, productType]);
 
   const handleAnalyze = async () => {
+    if (!product) return;
+    const key = analysisKey;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -395,13 +300,14 @@ const RMPage: React.FC = () => {
     setHistoricalResult(null);
     setHistoricalError(null);
     try {
-      const product = getProduct();
       const res = await runAnalysis({
         product,
-        profile: withProfile && profile.client_name ? profile : null,
+        profile: withProfile && profile ? profile : null,
         include_monte_carlo: includeMC,
+        case_id: selectedClientId,
       });
       setResult(res);
+      setAnalysedKey(key);
     } catch (err: unknown) {
       const e = err as { detail?: string };
       setError(e?.detail ?? 'Analysis failed. Is the backend running?');
@@ -410,11 +316,18 @@ const RMPage: React.FC = () => {
     }
   };
 
+  // Analyse as soon as a client is selected and the product templates are ready.
+  useEffect(() => {
+    if (selectedClientId && product) void handleAnalyze();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClientId, !!product]);
+
   const loadHistoricalScenarios = async () => {
+    if (!product) return;
     setHistoricalLoading(true);
     setHistoricalError(null);
     try {
-      const res = await runHistoricalSimulation(getProduct());
+      const res = await runHistoricalSimulation(product);
       setHistoricalResult(res);
     } catch (err: unknown) {
       const e = err as { detail?: string };
@@ -433,63 +346,74 @@ const RMPage: React.FC = () => {
   }, [activeTab, result, historicalResult, historicalLoading, historicalError]);
 
   const handleFixIt = async () => {
-    if (!result?.suitability) return;
+    if (!result?.suitability || !product || !profile) return;
     setFixLoading(true);
     try {
-      const fi = await runFixIt(getProduct(), profile);
+      const fi = await runFixIt(product, profile);
       setFixIt(fi);
-    } catch {
-      setError('Fix-it failed.');
+    } catch (err: unknown) {
+      setError((err as { detail?: string })?.detail ?? 'Fix-it failed.');
     } finally {
       setFixLoading(false);
     }
   };
 
-  // Client Selection Handler – only the client profile changes; the product terms the RM
-  // set stay as they are, so product analysis (payoff, scenarios, replay, MC) is unaffected
-  // and only the suitability check reflects the new client.
+  // Client Selection Handler – loads the client's profile and, if the RM has already
+  // recommended a product to them, that product's terms. With nothing saved, the terms the
+  // RM has in the builder stay as they are (the recommendation is only written by the
+  // explicit "Recommend to client" button).
   const handleSelectClient = (client: ClientRow) => {
-    const current = productType === 'ELN' ? eln : productType === 'CPN' ? cpn : dcd;
-    // Treat the current terms as already saved so switching clients doesn't write them
-    // to the new client's record; only actual edits are persisted.
-    lastSavedConfig.current = JSON.stringify(current);
+    const saved = client.product_config;
+    if (saved) {
+      setProductType(saved.product_type);
+      setProduct(saved);
+    }
     setSaveState('idle');
+    setSaveError(null);
+    setM3Verdict(null);
     setSelectedClientId(client.case_id);
     setWithProfile(true);
     setProfile(client.profile);
   };
 
-  const selectedClient = dbClients.find((c) => c.case_id === selectedClientId);
+  const recommendedMatches =
+    !!selectedClient?.product_config && !!product && canonical(selectedClient.product_config) === canonical(product);
+  const recommendBlocker: string | null = !selectedClient
+    ? 'Select a client first.'
+    : productCheck && !productCheck.allowed
+    ? productCheck.reason
+    : !resultIsCurrent || !result?.run_id
+    ? 'Run the analysis on these terms for this client first.'
+    : null;
 
-  // Persist product edits to the selected client's case (debounced).
-  useEffect(() => {
-    if (!selectedClient?.persisted) return;
-    const product = productType === 'ELN' ? eln : productType === 'CPN' ? cpn : dcd;
-    const serialized = JSON.stringify(product);
-    if (serialized === lastSavedConfig.current) return;
+  // Recommend the analysed terms to the selected client (server enforces the same rules).
+  const recommendToClient = async () => {
+    if (!selectedClient || !product || !result?.run_id || recommendBlocker) return;
     const caseId = selectedClient.case_id;
-    const t = setTimeout(async () => {
-      setSaveState('saving');
-      try {
-        await updateCaseProductConfig(caseId, product);
-        lastSavedConfig.current = serialized;
-        setDbClients((prev) => prev.map((c) => (c.case_id === caseId ? { ...c, product_config: product } : c)));
-        setSaveState('saved');
-      } catch {
-        setSaveState('error');
-      }
-    }, 800);
-    return () => clearTimeout(t);
-  }, [eln, cpn, dcd, productType, selectedClient?.case_id, selectedClient?.persisted]);
+    setSaveState('saving');
+    setSaveError(null);
+    try {
+      const saved = await updateCaseProductConfig(caseId, product, result.run_id);
+      setClients((prev) => prev.map((c) => (c.case_id === caseId ? { ...c, product_config: saved.product_config } : c)));
+      setSaveState('saved');
+    } catch (err: unknown) {
+      setSaveState('error');
+      setSaveError((err as { detail?: string })?.detail ?? 'Could not save the recommendation.');
+    }
+  };
 
-  const filteredClients = dbClients.filter((c) =>
-    c.client_name.toLowerCase().includes(clientFilter.toLowerCase()) ||
-    c.case_id.toLowerCase().includes(clientFilter.toLowerCase()) ||
-    (c.profile.risk_appetite || '').toLowerCase().includes(clientFilter.toLowerCase())
+  const needle = clientFilter.toLowerCase();
+  const filteredClients = clients.filter((c) =>
+    c.client_name.toLowerCase().includes(needle) ||
+    c.case_id.toLowerCase().includes(needle) ||
+    (c.profile.risk_appetite || '').toLowerCase().includes(needle)
   );
 
+  // The full-screen graph only has chart tabs; Suitability/Reasoning have no chart of their own there.
+  const graphTab: Tab = activeTab === 'suitability' || activeTab === 'explanation' ? 'payoff' : activeTab;
+
   const selectedUnderlying = underlyings.find((u) => u.key === currentUnderlying);
-  const currentProduct = getProduct();
+  const barrierX = product?.product_type === 'ELN' ? product.barrier_pct : null;
 
   return (
     <>
@@ -512,24 +436,46 @@ const RMPage: React.FC = () => {
               </h1>
               <div style={{ fontSize: 13, color: 'var(--stone)' }}>
                 RM <span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{activeRM.legal_name}</span> ({activeRM.institution})
-                {' '}· Client <span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{profile.client_name || 'Generic'}</span>
-                {' '}· Underlying <span className="mono" style={{ color: 'var(--on-dark)' }}>{currentUnderlying}</span>
-                {selectedClient?.persisted && saveState !== 'idle' && (
+                {' '}· Client <span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{selectedClient?.client_name ?? 'none selected'}</span>
+                {selectedClient && (
                   <span style={{ marginLeft: 8, color: saveState === 'error' ? 'var(--accent-red, #ef4444)' : 'var(--stone)' }}>
-                    · {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved to client record' : 'Save failed'}
+                    · {saveState === 'saving'
+                      ? 'Saving…'
+                      : saveState === 'error'
+                      ? 'Save failed'
+                      : recommendedMatches
+                      ? 'Recommended to client'
+                      : selectedClient.product_config
+                      ? 'Differs from the saved recommendation'
+                      : 'Not yet recommended'}
                   </span>
                 )}
               </div>
+              {(saveError || (selectedClient && recommendBlocker && !recommendedMatches)) && (
+                <div style={{ fontSize: 12, marginTop: 6, color: saveError ? 'var(--accent-danger)' : 'var(--accent-warning)' }}>
+                  {saveError ?? recommendBlocker}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
-              {(liveSuit || result?.suitability) && withProfile && (
-                <div className="flex items-center gap-3">
-                  {suitLoading && <Spinner size={14} label="Updating suitability..." />}
-                  <ScoreRing score={(result?.suitability || liveSuit)!.score} size={64} label="Score" />
-                  <VerdictBadge verdict={(result?.suitability || liveSuit)!.verdict} />
+              {m3Verdict && (
+                <div className="flex items-center gap-2" title="Rule-based suitability on real historical replays (audited)">
+                  <span style={{ fontSize: 11, color: 'var(--stone)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Suitability</span>
+                  <VerdictBadge verdict={M3_TO_BADGE[m3Verdict] as never} />
                 </div>
               )}
+
+              <button
+                id="recommend-to-client-btn"
+                className="btn btn-primary btn-sm"
+                onClick={recommendToClient}
+                disabled={!!recommendBlocker || saveState === 'saving' || recommendedMatches}
+                title={recommendBlocker ?? undefined}
+              >
+                <Send size={14} />{' '}
+                {recommendedMatches ? 'Recommended' : `Recommend to ${selectedClient?.client_name?.split(' ')[0] ?? 'client'}`}
+              </button>
 
               <Link to="/rm/register" className="btn btn-outline-dark btn-sm">
                 <UserCog size={14} /> Onboarding &amp; Clearance
@@ -553,12 +499,14 @@ const RMPage: React.FC = () => {
             />
             <StatBox
               label="Tenor"
-              value={`${currentProduct.tenor_months}m`}
+              value={product ? `${product.tenor_months}m` : '—'}
             />
             <StatBox
               label="Principal"
-              value={`₹${(currentProduct.principal / 100000).toFixed(1)}L`}
-              subtext={currentProduct.currency}
+              value={product ? compactAmount(product.principal, product.currency) : '—'}
+              subtext={result && resultIsCurrent && product?.currency !== 'INR'
+                ? `${product?.currency} · ≈ ${compactAmount(result.principal_inr, 'INR')} at ${result.fx.inr_per_unit.toFixed(2)}`
+                : product?.currency}
             />
             <StatBox
               label="Max Gain"
@@ -572,7 +520,7 @@ const RMPage: React.FC = () => {
             />
             <StatBox
               label="FD Baseline"
-              value={result ? `+${(result.metrics.fd_baseline.annualised_return * 100).toFixed(1)}%` : '+7.0%'}
+              value={result ? `+${(result.metrics.fd_baseline.annualised_return * 100).toFixed(1)}%` : '—'}
               subtext="p.a."
             />
           </div>
@@ -599,7 +547,7 @@ const RMPage: React.FC = () => {
                 <div className="card mb-3" style={{ padding: 14, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                   <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 6 }}>Structure</div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {(['ELN', 'CPN', 'DCD'] as const).map((pt) => (
+                    {PRODUCT_TYPES.map((pt) => (
                       <button
                         key={pt}
                         id={`product-type-${pt}`}
@@ -611,7 +559,10 @@ const RMPage: React.FC = () => {
                       </button>
                     ))}
                   </div>
+
                 </div>
+
+                {setupError && <Alert variant="error" className="mb-3">{setupError}</Alert>}
 
                 {/* Underlying Asset */}
                 <div className="card mb-3" style={{ padding: 14, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
@@ -621,15 +572,14 @@ const RMPage: React.FC = () => {
                     className="form-select"
                     style={{ height: 42, fontSize: 13, paddingTop: 0, paddingBottom: 0 }}
                     value={currentUnderlying}
+                    disabled={!product}
                     onChange={(e) => {
-                      const v = e.target.value;
-                      if (productType === 'ELN') setEln((p) => ({ ...p, underlying: v }));
-                      else if (productType === 'CPN') setCpn((p) => ({ ...p, underlying: v }));
-                      else setDcd((p) => ({ ...p, underlying: v }));
+                      const meta = underlyings.find((u) => u.key === e.target.value);
+                      if (product && meta) setProduct(withUnderlying(product, meta, defaults[productType]));
                     }}
                   >
-                    {underlyings.length === 0 && <option value={currentUnderlying}>{currentUnderlying}</option>}
-                    {underlyings.map((u) => (
+                    {underlyings.length === 0 && <option value={currentUnderlying}>{currentUnderlying || 'Loading…'}</option>}
+                    {underlyings.filter((u) => fitsProduct(productType, u)).map((u) => (
                       <option key={u.key} value={u.key}>
                         {u.display_name} ({u.currency})
                       </option>
@@ -641,7 +591,7 @@ const RMPage: React.FC = () => {
                       <span className="stat-label" style={{ fontSize: 10 }}>{selectedUnderlying.asset_class}</span>
                       {selectedUnderlying.latest_price != null && (
                         <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>
-                          ₹{selectedUnderlying.latest_price.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          {currencySymbol(selectedUnderlying.currency)}{selectedUnderlying.latest_price.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                         </span>
                       )}
                       {selectedUnderlying.vol_1y != null && (
@@ -665,9 +615,10 @@ const RMPage: React.FC = () => {
                   <div style={{ fontSize: 11, color: 'var(--stone)', marginBottom: 8 }}>
                     {productType} parameters
                   </div>
-                  {productType === 'ELN' && <ELNForm config={eln} onChange={setEln} />}
-                  {productType === 'CPN' && <CPNForm config={cpn} onChange={setCpn} />}
-                  {productType === 'DCD' && <DCDForm config={dcd} onChange={setDcd} />}
+                  {!product && !setupError && <div className="text-center py-2"><Spinner size={14} label="Loading terms…" /></div>}
+                  {product?.product_type === 'ELN' && <ELNForm config={product} onChange={setProduct} />}
+                  {product?.product_type === 'CPN' && <CPNForm config={product} onChange={setProduct} />}
+                  {product?.product_type === 'DCD' && <DCDForm config={product} onChange={setProduct} />}
                 </div>
 
                 {/* Options & Controls */}
@@ -689,7 +640,7 @@ const RMPage: React.FC = () => {
                   className="btn btn-primary"
                   style={{ fontSize: 15, width: '100%', justifyContent: 'center' }}
                   onClick={handleAnalyze}
-                  disabled={loading}
+                  disabled={loading || !product}
                 >
                   {loading ? <Spinner size={16} /> : <Play size={16} />}
                   {loading ? 'Computing Payoff…' : 'Run Full Analysis'}
@@ -711,7 +662,7 @@ const RMPage: React.FC = () => {
                         { key: 'scenarios', label: 'Scenarios', icon: <Table size={13} /> },
                         { key: 'replay', label: 'Replay', icon: <RotateCcw size={13} />, disabled: !result?.metrics?.replay },
                         { key: 'mc', label: 'Monte Carlo', icon: <Dices size={13} />, disabled: !result?.metrics?.monte_carlo },
-                        { key: 'suitability', label: 'Suitability', icon: <Shield size={13} />, disabled: !result?.suitability },
+                        { key: 'suitability', label: 'Model checks', icon: <Shield size={13} />, disabled: !result?.suitability },
                         { key: 'explanation', label: 'Reasoning', icon: <MessageSquare size={13} />, disabled: !result?.explanation },
                       ] as { key: Tab; label: string; icon: React.ReactNode; disabled?: boolean }[]
                     ).map((t) => (
@@ -747,7 +698,7 @@ const RMPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {result && (
+                    {result?.run_id && (
                       <button
                         className="btn btn-outline-dark btn-sm"
                         style={{
@@ -801,7 +752,7 @@ const RMPage: React.FC = () => {
                         <PayoffChart
                           curve={result.metrics.payoff_curve}
                           breakEven={result.metrics.break_even_x}
-                          barrierX={productType === 'ELN' ? eln.barrier_pct : null}
+                          barrierX={barrierX}
                           fdBaseline={result.metrics.fd_baseline.annualised_return}
                           height={240}
                         />
@@ -810,7 +761,7 @@ const RMPage: React.FC = () => {
 
                     {activeTab === 'scenarios' && (
                       <div className="card" style={{ background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', padding: 16 }}>
-                        <ScenarioTable rows={result.metrics.scenario_table} principal={getProduct().principal} />
+                        <ScenarioTable rows={result.metrics.scenario_table} principal={product?.principal ?? 0} />
                       </div>
                     )}
 
@@ -867,7 +818,7 @@ const RMPage: React.FC = () => {
                         <PayoffChart
                           curve={result.metrics.payoff_curve}
                           breakEven={result.metrics.break_even_x}
-                          barrierX={productType === 'ELN' ? eln.barrier_pct : null}
+                          barrierX={barrierX}
                           fdBaseline={result.metrics.fd_baseline.annualised_return}
                           height={220}
                         />
@@ -888,7 +839,6 @@ const RMPage: React.FC = () => {
                     <span className="rm-purple-badge flex items-center gap-1">
                       <Sparkles size={11} /> AI Rationale
                     </span>
-                    {result?.suitability && <VerdictBadge verdict={result.suitability.verdict} />}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -925,14 +875,11 @@ const RMPage: React.FC = () => {
                       <section className="rationale-col">
                         <header className="rationale-col-head">
                           <span className="rationale-eyebrow">Client rationale</span>
-                          <span className="rationale-who">{profile.client_name || 'Client'}</span>
+                          <span className="rationale-who">{profile?.client_name ?? 'No client'}</span>
                         </header>
                         <div className="rationale-scroll">
                           <FormattedClientReasoning
-                            text={
-                              result.explanation?.client_text ||
-                              `**What this product does** This ${productType} structure offers downside protection with target yield of ${((eln.coupon_pa || 0.12) * 100).toFixed(1)}% p.a.\n**Why it fits you** Tailored for ${profile.risk_appetite} risk appetite.`
-                            }
+                            text={result.explanation?.client_text || 'No client explanation was generated for this run.'}
                           />
                         </div>
                       </section>
@@ -944,10 +891,7 @@ const RMPage: React.FC = () => {
                         </header>
                         <div className="rationale-scroll">
                           <FormattedRMReasoning
-                            text={
-                              result.explanation?.rm_text ||
-                              `**Verdict:** ${result.suitability?.verdict || 'CONDITIONALLY_SUITABLE'} | **Suitability score:** ${result.suitability?.score || 85}/100\nCleared under SEBI / institutional guidelines for ${activeRM.access_tier}. Client investable capacity ₹${(profile.investable_assets / 100000).toFixed(1)}L supports ₹${(profile.investment_amount / 100000).toFixed(1)}L ticket size.`
-                            }
+                            text={result.explanation?.rm_text || 'No RM briefing was generated for this run.'}
                           />
                         </div>
                       </section>
@@ -959,10 +903,12 @@ const RMPage: React.FC = () => {
 
               {/* 4. Module 3: rule-based suitability on Module 2's real historical replay */}
               <SuitabilityAssessmentCard
-                clientId={selectedClientId}
-                clientName={selectedClient?.client_name ?? profile.client_name}
-                persisted={!!selectedClient?.persisted}
-                product={currentProduct}
+                clientId={selectedClientId ?? ''}
+                clientName={selectedClient?.client_name ?? ''}
+                rmName={activeRM.legal_name}
+                persisted={!!selectedClient && !!product}
+                product={product}
+                onResult={(r) => setM3Verdict(r?.assessment.overall_status ?? null)}
               />
 
             </div>
@@ -1032,7 +978,7 @@ const RMPage: React.FC = () => {
                           Risk: <strong style={{ color: 'var(--on-dark-mute)' }}>{client.profile.risk_appetite}</strong>
                         </span>
                         <span className="mono" style={{ color: '#fff' }}>
-                          ₹{(client.profile.investment_amount / 100000).toFixed(0)}L Ticket
+                          {compactAmount(client.profile.liquid_net_worth ?? client.profile.investable_assets, 'INR')} net worth
                         </span>
                       </div>
                     </div>
@@ -1056,30 +1002,12 @@ const RMPage: React.FC = () => {
                   </button>
                 </div>
 
-                <ProfileMiniForm profile={profile} onChange={(p) => setProfile(p)} />
+                {profile ? (
+                  <ProfileSummary profile={profile} />
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--stone)' }}>Select a client to load their recorded profile.</div>
+                )}
               </div>
-
-              {/* Quick Add Client Button */}
-              <button
-                className="btn btn-outline-dark btn-sm mt-3"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => {
-                  const newName = prompt('Enter new Client Name:');
-                  if (newName) {
-                    const newCaseId = `CL-${Math.floor(100 + Math.random() * 900)}`;
-                    const newClient = {
-                      case_id: newCaseId,
-                      client_name: newName,
-                      created_at: new Date().toISOString(),
-                      profile: { ...DEFAULT_PROFILE, client_name: newName },
-                    };
-                    setDbClients([newClient, ...dbClients]);
-                    handleSelectClient(newClient);
-                  }
-                }}
-              >
-                <Plus size={14} /> Add client
-              </button>
 
             </div>
 
@@ -1099,10 +1027,10 @@ const RMPage: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b" style={{ flexWrap: 'wrap', gap: 12 }}>
               <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
                 <span className={fullScreenView === 'graph' ? 'rm-green-badge' : 'rm-purple-badge'}>
-                  {fullScreenView === 'graph' ? 'Analysis' : 'Rationale & Suitability'}
+                  {fullScreenView === 'graph' ? 'Analysis' : 'AI Rationale'}
                 </span>
                 <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--on-dark)' }}>
-                  {productType} on {currentUnderlying} · {profile.client_name || 'Generic'}
+                  {productType} on {currentUnderlying} · {selectedClient?.client_name ?? 'no client selected'}
                 </span>
               </div>
 
@@ -1132,8 +1060,8 @@ const RMPage: React.FC = () => {
                       <button
                         key={t}
                         role="tab"
-                        aria-selected={activeTab === t}
-                        className={`seg-tab ${activeTab === t ? 'active' : ''}`}
+                        aria-selected={graphTab === t}
+                        className={`seg-tab ${graphTab === t ? 'active' : ''}`}
                         onClick={() => setActiveTab(t)}
                       >
                         {label}
@@ -1148,39 +1076,39 @@ const RMPage: React.FC = () => {
                   <>
                     <MetricsSummary metrics={result.metrics} />
 
-                    {activeTab === 'payoff' && (
+                    {graphTab === 'payoff' && (
                       <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                         <div className="card-title mb-2">Payoff curve &amp; break-even</div>
                         <PayoffChart
                           curve={result.metrics.payoff_curve}
                           breakEven={result.metrics.break_even_x}
-                          barrierX={productType === 'ELN' ? eln.barrier_pct : null}
+                          barrierX={barrierX}
                           fdBaseline={result.metrics.fd_baseline.annualised_return}
                           height={420}
                         />
                       </div>
                     )}
 
-                    {activeTab === 'scenarios' && (
+                    {graphTab === 'scenarios' && (
                       <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
-                        <ScenarioTable rows={result.metrics.scenario_table} principal={getProduct().principal} />
+                        <ScenarioTable rows={result.metrics.scenario_table} principal={product?.principal ?? 0} />
                       </div>
                     )}
 
-                    {activeTab === 'mc' && result.metrics.monte_carlo && (
+                    {graphTab === 'mc' && result.metrics.monte_carlo && (
                       <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                         <div className="card-title mb-2">Monte Carlo fan chart (2,000 paths)</div>
                         <MCFanChart mc={result.metrics.monte_carlo} height={400} />
                       </div>
                     )}
 
-                    {activeTab === 'replay' && result.metrics.replay && (
+                    {graphTab === 'replay' && result.metrics.replay && (
                       <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>
                         <HistogramChart bins={result.metrics.replay.histogram} title="Historical Replay Return Distribution" />
                       </div>
                     )}
 
-                    {activeTab === 'replay' && (
+                    {graphTab === 'replay' && (
                       <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)', marginTop: 16 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                           <h4 style={{ margin: 0 }}>Historical Scenarios (real market periods)</h4>
@@ -1301,7 +1229,7 @@ const ELNForm: React.FC<ELNFormProps> = ({ config, onChange }) => {
       />
       <PrincipalField
         value={config.principal} currency={config.currency}
-        onChange={(v) => set('principal', v)} onCurrencyChange={(v) => set('currency', v)}
+        onChange={(v) => set('principal', v)}
       />
     </div>
   );
@@ -1329,7 +1257,7 @@ const CPNForm: React.FC<CPNFormProps> = ({ config, onChange }) => {
       />
       <PrincipalField
         value={config.principal} currency={config.currency}
-        onChange={(v) => set('principal', v)} onCurrencyChange={(v) => set('currency', v)}
+        onChange={(v) => set('principal', v)}
       />
     </div>
   );
@@ -1360,7 +1288,7 @@ const DCDForm: React.FC<DCDFormProps> = ({ config, onChange }) => {
       />
       <PrincipalField
         value={config.principal} currency={config.currency}
-        onChange={(v) => set('principal', v)} onCurrencyChange={(v) => set('currency', v)}
+        onChange={(v) => set('principal', v)}
       />
     </div>
   );
@@ -1384,73 +1312,41 @@ const SliderField: React.FC<SliderFieldProps> = ({ id, label, value, min, max, s
 );
 
 interface PrincipalFieldProps {
-  value: number; currency: string; onChange: (v: number) => void; onCurrencyChange: (v: string) => void;
+  value: number; currency: string; onChange: (v: number) => void;
 }
-const PrincipalField: React.FC<PrincipalFieldProps> = ({ value, currency, onChange, onCurrencyChange }) => (
+/** Principal in the product's currency, which follows the underlying (set by the backend config). */
+const PrincipalField: React.FC<PrincipalFieldProps> = ({ value, currency, onChange }) => (
   <div className="form-group">
-    <label className="form-label" htmlFor="principal-input" style={{ fontSize: 11 }}>Principal</label>
-    <div style={{ display: 'flex', gap: 6 }}>
-      <input
-        id="principal-input" type="number" className="form-input mono"
-        style={{ height: 38, fontSize: 13 }} min={1} step={100000}
-        value={value} onChange={(e) => onChange(+e.target.value)}
-      />
-      <select
-        className="form-select" style={{ width: 75, height: 38, fontSize: 12, padding: '4px 6px' }}
-        value={currency} onChange={(e) => onCurrencyChange(e.target.value)}
-      >
-        {['INR', 'USD', 'EUR', 'GBP', 'JPY'].map((c) => (<option key={c} value={c}>{c}</option>))}
-      </select>
-    </div>
+    <label className="form-label" htmlFor="principal-input" style={{ fontSize: 11 }}>Principal ({currency})</label>
+    <input
+      id="principal-input" type="number" className="form-input mono"
+      style={{ height: 38, fontSize: 13 }} min={1} step={currency === 'INR' ? 100000 : 1000}
+      value={value} onChange={(e) => onChange(+e.target.value)}
+    />
   </div>
 );
 
-interface ProfileMiniFormProps { profile: ClientProfile; onChange: (p: ClientProfile) => void; }
-const ProfileMiniForm: React.FC<ProfileMiniFormProps> = ({ profile, onChange }) => {
-  const set = <K extends keyof ClientProfile>(k: K, v: ClientProfile[K]) => onChange({ ...profile, [k]: v });
+/** The client's recorded profile. It belongs to the client (they edit it in their portal),
+ * so the RM sees it read-only and every analysis uses exactly what is on file. */
+const ProfileSummary: React.FC<{ profile: ClientProfile }> = ({ profile }) => {
+  const rows: [string, string][] = [
+    ['Client', profile.client_name],
+    ['Risk appetite', profile.risk_appetite ?? '—'],
+    ['Horizon', profile.horizon_months != null ? `${profile.horizon_months} months` : '—'],
+    ['Max loss', profile.loss_tolerance_pct != null ? `${profile.loss_tolerance_pct}%` : '—'],
+    ['Liquid net worth', compactAmount(profile.liquid_net_worth ?? profile.investable_assets, 'INR')],
+    ['Planned amount', profile.investment_amount != null ? compactAmount(profile.investment_amount, 'INR') : 'Not stated'],
+    ['Experience', profile.experience ?? '—'],
+    ['KYC', profile.kyc_verified ? 'Verified' : 'Not verified'],
+  ];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div className="form-group">
-        <label className="form-label" htmlFor="rm-client-name" style={{ fontSize: 11 }}>Client Name</label>
-        <input
-          id="rm-client-name" className="form-input" style={{ height: 36, fontSize: 12 }}
-          value={profile.client_name} onChange={(e) => set('client_name', e.target.value)}
-          placeholder="e.g. Priya Sharma"
-        />
-      </div>
-      <div className="form-group">
-        <label className="form-label" htmlFor="rm-risk" style={{ fontSize: 11 }}>Risk Appetite</label>
-        <select
-          id="rm-risk" className="form-select" style={{ height: 36, fontSize: 12, padding: '4px 8px' }}
-          value={profile.risk_appetite}
-          onChange={(e) => set('risk_appetite', e.target.value as ClientProfile['risk_appetite'])}
-        >
-          <option value="conservative">Conservative</option>
-          <option value="moderate">Moderate</option>
-          <option value="aggressive">Aggressive</option>
-        </select>
-      </div>
-      <SliderField
-        id="rm-loss-tol" label="Loss Tolerance" value={profile.loss_tolerance_pct}
-        min={0} max={50} step={1} format={(v) => `${v}%`}
-        onChange={(v) => set('loss_tolerance_pct', v)}
-      />
-      <div className="form-group">
-        <label className="form-label" htmlFor="rm-invest" style={{ fontSize: 11 }}>Ticket Size (₹)</label>
-        <input
-          id="rm-invest" className="form-input mono" type="number" style={{ height: 36, fontSize: 12 }}
-          min={1} step={100000} value={profile.investment_amount}
-          onChange={(e) => set('investment_amount', +e.target.value)}
-        />
-      </div>
-      <div className="form-group">
-        <label className="form-label" htmlFor="rm-assets" style={{ fontSize: 11 }}>Investable Assets (₹)</label>
-        <input
-          id="rm-assets" className="form-input mono" type="number" style={{ height: 36, fontSize: 12 }}
-          min={1} step={100000} value={profile.investable_assets}
-          onChange={(e) => set('investable_assets', +e.target.value)}
-        />
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between" style={{ fontSize: 12 }}>
+          <span style={{ color: 'var(--stone)' }}>{label}</span>
+          <span style={{ color: 'var(--on-dark)', fontWeight: 600, textTransform: 'capitalize' }}>{value}</span>
+        </div>
+      ))}
     </div>
   );
 };

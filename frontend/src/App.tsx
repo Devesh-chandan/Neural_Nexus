@@ -1,8 +1,9 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import ClientPage from './pages/ClientPage';
+import ClientPortalPage from './pages/ClientPortalPage';
 import ClientRegisterPage from './pages/ClientRegisterPage';
 import RMPage from './pages/RMPage';
 import RMRegisterPage from './pages/RMRegisterPage';
@@ -16,16 +17,10 @@ function AppRoutes() {
   const location = useLocation();
   // Hide navbar on login page
   const hideNavbar = location.pathname === '/login';
-  const mode =
-    location.pathname.startsWith('/rm')
-      ? 'rm'
-      : location.pathname.startsWith('/client')
-      ? 'client'
-      : null;
 
   return (
     <>
-      {!hideNavbar && <Navbar mode={mode} />}
+      {!hideNavbar && <Navbar />}
       <main id="main-content" role="main">
         <Routes>
           {/* Public routes */}
@@ -51,6 +46,14 @@ function AppRoutes() {
           {/* Protected: Client routes */}
           <Route
             path="/client"
+            element={
+              <ProtectedRoute requiredRole="client">
+                <ClientPortalPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/client/profile"
             element={
               <ProtectedRoute requiredRole="client">
                 <ClientPage />
@@ -100,9 +103,9 @@ function AppRoutes() {
                   >
                     The route <code className="mono">{location.pathname}</code> doesn't exist.
                   </p>
-                  <a href="/" className="btn btn-primary">
+                  <Link to="/" className="btn btn-primary">
                     Go Home
-                  </a>
+                  </Link>
                 </div>
               </div>
             }

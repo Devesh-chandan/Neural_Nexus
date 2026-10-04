@@ -50,9 +50,11 @@ export interface ClientProfile {
   horizon_months: number;
   loss_tolerance_pct: number;
   investable_assets: number;
-  investment_amount: number;
+  /** Planned ticket size in INR; null until the client states it. */
+  investment_amount: number | null;
   existing_exposure_underlying_pct: number;
-  existing_structured_pct: number;
+  /** Share already in structured products; null when the record does not say. */
+  existing_structured_pct?: number | null;
   experience: Experience;
   target_return_pa?: number | null;
   preferred_underlying_types?: string[] | null;
@@ -157,6 +159,8 @@ export interface ProviderInfo {
   auth: string;
   scopes: string[];
   notes: string;
+  /** False until a live connector for this provider is configured. */
+  connected: boolean;
 }
 
 export interface ProvidersResponse {
@@ -311,6 +315,9 @@ export interface UnderlyingMeta {
   type: string;
   currency: string;
   sector: string;
+  /** FX pairs only: the deposit currency and the currency it may be repaid in. */
+  base_currency?: string | null;
+  alt_currency?: string | null;
   latest_price: number | null;
   data_source: string;
   as_of: string | null;
@@ -442,14 +449,27 @@ export interface MetricsBundle {
   pricing: PricingInfo;
 }
 
+export interface FxQuote {
+  currency: string;
+  inr_per_unit: number;
+  as_of: string | null;
+  source: string;
+  pairs: string[];
+}
+
 export interface AnalyzeResponse {
-  run_id: string;
+  /** null when the analysis was run with persist: false. */
+  run_id: string | null;
   metrics: MetricsBundle;
   suitability?: SuitabilityResult | null;
   explanation?: ExplanationResult | null;
   data_source: string;
   as_of: string;
   snapshot_id: string;
+  /** The product as the backend validated it (currency aligned with the underlying). */
+  product: ProductConfig;
+  principal_inr: number;
+  fx: FxQuote;
   disclaimer: string;
 }
 
@@ -718,6 +738,8 @@ export interface AssessmentResponse {
   assessment: SuitabilityAssessment;
   simulation: HistoricalSimulationResult;
   data_gaps: string[];
+  /** Rate used to restate the client's INR net worth in the product currency. */
+  fx: FxQuote;
   explanation: {
     client: ClientAssessmentExplanation;
     /** RM responses only. */

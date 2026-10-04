@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, ChevronDown, User, Building2, Menu, X } from 'lucide-react';
+import Wordmark from './Wordmark';
 import { useAuth } from '../hooks/useAuth';
 
-interface NavbarProps {
-  mode?: 'rm' | 'client' | null;
-}
+interface NavbarProps {}
 
-const Navbar: React.FC<NavbarProps> = ({ mode }) => {
+const Navbar: React.FC<NavbarProps> = () => {
   const navigate = useNavigate();
-  const { user, role, logout } = useAuth();
+  const { user, role, loading, logout } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -25,26 +24,22 @@ const Navbar: React.FC<NavbarProps> = ({ mode }) => {
         ? user?.client_name || 'Client'
         : null;
 
-  const links: { to: string; label: string; end?: boolean }[] = [
+  const links = [
     { to: '/', label: 'Home', end: true },
-    // Show nav links relevant to the logged-in role
-    ...(role === 'client' ? [{ to: '/client', label: 'Client Portal', end: true }] : []),
-    ...(role === 'rm' ? [{ to: '/rm', label: 'RM Workspace', end: true }] : []),
-    // Registration links for unauthenticated users
-    ...(!role
+    ...(role === 'client'
       ? [
-        { to: '/client/register', label: 'Client KYC' },
-        { to: '/rm/register', label: 'RM Onboarding' },
-      ]
+          { to: '/client', label: 'Client Portal', end: true },
+          { to: '/client/profile', label: 'My Profile', end: true },
+        ]
       : []),
+    ...(role === 'rm' ? [{ to: '/rm', label: 'RM Workspace', end: true }] : []),
   ];
 
   return (
     <nav className="navbar" role="navigation" aria-label="Main navigation">
       <div className="navbar-inner">
         <NavLink to="/" className="navbar-logo" aria-label="Neural Nexus home">
-          <img src="/logo.png" alt="" aria-hidden="true" className="navbar-logo-img" />
-          <span>Neural Nexus</span>
+          <Wordmark />
         </NavLink>
 
         <ul className="navbar-nav" role="list">
@@ -58,16 +53,6 @@ const Navbar: React.FC<NavbarProps> = ({ mode }) => {
         </ul>
 
         <div className="flex items-center gap-2">
-          {mode && role && (
-            <span
-              className={`navbar-mode-badge ${mode}`}
-              aria-label={`Current mode: ${mode === 'rm' ? 'Relationship Manager' : 'Client'}`}
-            >
-              <span className="rule-dot GREEN" style={{ width: 6, height: 6 }} aria-hidden="true" />
-              {mode === 'rm' ? 'RM View' : 'Client View'}
-            </span>
-          )}
-
           {/* Logged-in user chip */}
           {displayName && role ? (
             <div style={{ position: 'relative' }}>
@@ -132,7 +117,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode }) => {
                           <User size={13} />
                           {displayName}
                         </div>
-                        <div className="navbar-menu-meta">Case ID: {user?.case_id || ''}</div>
+                        {user?.case_id && <div className="navbar-menu-meta">Case ID: {user.case_id}</div>}
                       </div>
                     )}
 
@@ -150,9 +135,12 @@ const Navbar: React.FC<NavbarProps> = ({ mode }) => {
               )}
             </div>
           ) : (
-            <NavLink to="/login" className="btn btn-primary btn-sm" aria-label="Log in">
-              Log In
-            </NavLink>
+            // Don't flash "Log In" at a signed-in user while the stored session is still being validated.
+            !loading && (
+              <NavLink to="/login" className="btn btn-primary btn-sm" aria-label="Log in">
+                Log In
+              </NavLink>
+            )
           )}
 
           <button

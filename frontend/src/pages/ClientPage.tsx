@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Trophy, ArrowRight } from 'lucide-react';
-import { runRecommend, createCase, fetchCases, updateCaseProfile } from '../api';
+import { runRecommend, fetchCases, updateCaseProfile } from '../api';
 import type { ClientProfile, RecommendationResult } from '../types';
 import { LoadingOverlay, Alert, VerdictBadge, Disclaimer, StatBox } from '../components/UIKit';
 import { ProductPill } from '../components/UIKit';
@@ -10,29 +10,13 @@ import { ProductPill } from '../components/UIKit';
 
 type Step = 'profile' | 'results';
 
-// ── Defaults ───────────────────────────────────────────────────────────────
-
-const DEFAULT_PROFILE: ClientProfile = {
-  client_name: '',
-  risk_appetite: 'moderate',
-  horizon_months: 12,
-  loss_tolerance_pct: 15,
-  investable_assets: 10_000_000,
-  investment_amount: 1_000_000,
-  existing_exposure_underlying_pct: 0,
-  existing_structured_pct: 0,
-  experience: 'novice',
-  target_return_pa: null,
-  preferred_underlying_types: null,
-  needs_liquidity_within_months: null,
-};
-
 // ── ClientPage ─────────────────────────────────────────────────────────────
 
 const ClientPage: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('profile');
-  const [profile, setProfile] = useState<ClientProfile>({ ...DEFAULT_PROFILE });
+  const [profile, setProfile] = useState<ClientProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RecommendationResult | null>(null);
@@ -45,18 +29,22 @@ const ClientPage: React.FC = () => {
     fetchCases()
       .then((res) => {
         const own = res.cases[0];
-        if (!own) return;
-        const loaded = { ...DEFAULT_PROFILE, ...own.profile, client_name: own.profile?.client_name || own.client_name };
+        if (!own) {
+          setError('No client record is linked to your account yet. Complete registration first.');
+          return;
+        }
+        const loaded = { ...own.profile, client_name: own.profile?.client_name || own.client_name };
         lastSaved.current = JSON.stringify(loaded);
         setCaseId(own.case_id);
         setProfile(loaded);
       })
-      .catch(() => {});
+      .catch(() => setError('Could not load your profile. Is the backend running?'))
+      .finally(() => setLoadingProfile(false));
   }, []);
 
   // Auto-save edits back to the client's case.
   useEffect(() => {
-    if (!caseId) return;
+    if (!caseId || !profile) return;
     const serialized = JSON.stringify(profile);
     if (serialized === lastSaved.current) return;
     const t = setTimeout(async () => {
@@ -65,35 +53,35 @@ const ClientPage: React.FC = () => {
         await updateCaseProfile(caseId, profile);
         lastSaved.current = serialized;
         setSaveState('saved');
-      } catch {
+      } catch (err: unknown) {
         setSaveState('error');
+        setError((err as { detail?: string })?.detail ?? null);
       }
     }, 800);
     return () => clearTimeout(t);
   }, [profile, caseId]);
 
   const update = useCallback(<K extends keyof ClientProfile>(key: K, value: ClientProfile[K]) => {
-    setProfile((prev) => ({ ...prev, [key]: value }));
+    setProfile((prev) => (prev ? { ...prev, [key]: value } : prev));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!profile || !caseId) return;
     if (!profile.client_name.trim()) {
-      setError('Please enter a client name.');
+      setError('Please enter your name.');
+      return;
+    }
+    if (!profile.investment_amount) {
+      setError('Enter how much you plan to invest so products can be sized for you.');
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      if (caseId) {
-        await updateCaseProfile(caseId, profile);
-        lastSaved.current = JSON.stringify(profile);
-      } else {
-        const { case_id } = await createCase(profile);
-        lastSaved.current = JSON.stringify(profile);
-        setCaseId(case_id);
-      }
-      const rec = await runRecommend(profile);
+      await updateCaseProfile(caseId, profile);
+      lastSaved.current = JSON.stringify(profile);
+      const rec = await runRecommend(profile, caseId);
       setResult(rec);
       setStep('results');
     } catch (err: unknown) {
@@ -108,7 +96,7 @@ const ClientPage: React.FC = () => {
     navigate(`/dashboard/${runId}`);
   };
 
-  if (loading) {
+  if (loading || loadingProfile) {
     return (
       <div className="band-dark" style={{ minHeight: '80vh' }}>
         <div className="page-container">
@@ -133,10 +121,10 @@ const ClientPage: React.FC = () => {
                 Client Portal
               </div>
               <h1 className="display-lg" style={{ color: 'var(--on-dark)', marginBottom: 12 }}>
-                Investment Questionnaire
+                My Profile
               </h1>
               <p style={{ fontSize: 16, color: 'var(--on-dark-mute)', maxWidth: 520 }}>
-                Tell us about your investment profile and we'll recommend suitable structured products.
+                Keep your details up to date. Changes are saved automatically and shared with your relationship manager.
               </p>
               {caseId && saveState !== 'idle' && (
                 <p style={{ fontSize: 13, marginTop: 8, color: saveState === 'error' ? 'var(--accent-red, #ef4444)' : 'var(--stone)' }}>
@@ -145,6 +133,9 @@ const ClientPage: React.FC = () => {
               )}
             </div>
             <div className="flex items-center gap-3">
+              <Link to="/client" className="btn btn-outline-dark btn-sm">
+                ← Back to Portal
+              </Link>
               <Link to="/client/register" className="btn btn-outline-dark btn-sm">
                 <User size={14} /> Full KYC & Broker Import →
               </Link>
@@ -171,11 +162,11 @@ const ClientPage: React.FC = () => {
 
           {error && <Alert variant="error" className="mb-6">{error}</Alert>}
 
-          {step === 'profile' && (
+          {step === 'profile' && profile && (
             <ProfileForm profile={profile} update={update} onSubmit={handleSubmit} />
           )}
 
-          {step === 'results' && result && (
+          {step === 'results' && result && profile && (
             <RecommendationView
               result={result}
               profile={profile}
@@ -222,7 +213,7 @@ const SectionCard: React.FC<{
 
 const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) => {
   const concentrationPct =
-    profile.investable_assets > 0
+    profile.investable_assets > 0 && profile.investment_amount
       ? ((profile.investment_amount / profile.investable_assets) * 100).toFixed(1)
       : '—';
 
@@ -308,17 +299,17 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
                   id="horizon"
                   type="range"
                   min={3}
-                  max={36}
+                  max={120}
                   step={1}
                   value={profile.horizon_months}
                   onChange={(e) => update('horizon_months', +e.target.value)}
                   aria-valuenow={profile.horizon_months}
                   aria-valuemin={3}
-                  aria-valuemax={36}
+                  aria-valuemax={120}
                 />
                 <div className="flex justify-between">
                   <span className="form-hint">3 months</span>
-                  <span className="form-hint">36 months</span>
+                  <span className="form-hint">120 months</span>
                 </div>
               </div>
 
@@ -354,7 +345,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
           <SectionCard title="Portfolio Details">
             <div className="grid-2">
               <div className="form-group">
-                <label className="form-label" htmlFor="investable">Investable Assets (₹)</label>
+                <label className="form-label" htmlFor="investable">Liquid Net Worth (₹)</label>
                 <input
                   id="investable"
                   className="form-input mono"
@@ -362,12 +353,16 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
                   min={1}
                   step={100000}
                   value={profile.investable_assets}
-                  onChange={(e) => update('investable_assets', +e.target.value)}
+                  onChange={(e) => {
+                    // Liquid net worth is the investable base everywhere in the app.
+                    update('investable_assets', +e.target.value);
+                    update('liquid_net_worth', +e.target.value);
+                  }}
                 />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="inv-amount">
-                  Investment Amount (₹)
+                  Planned Investment Amount (₹) *
                   <span className="text-muted" style={{ fontWeight: 400, marginLeft: 6, fontSize: 12 }}>
                     ({concentrationPct}% of assets)
                   </span>
@@ -378,8 +373,10 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
                   type="number"
                   min={1}
                   step={100000}
-                  value={profile.investment_amount}
-                  onChange={(e) => update('investment_amount', +e.target.value)}
+                  placeholder="How much do you plan to invest?"
+                  value={profile.investment_amount ?? ''}
+                  onChange={(e) => update('investment_amount', e.target.value ? +e.target.value : null)}
+                  required
                 />
               </div>
 
@@ -400,24 +397,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
                   onChange={(e) => update('existing_exposure_underlying_pct', +e.target.value)}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="structured-pct">
-                  Existing Structured Products
-                  <span style={{ color: 'var(--on-dark)', fontWeight: 700, marginLeft: 8 }}>
-                    {profile.existing_structured_pct}%
-                  </span>
-                </label>
-                <input
-                  id="structured-pct"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={profile.existing_structured_pct}
-                  onChange={(e) => update('existing_structured_pct', +e.target.value)}
-                />
-              </div>
-
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <label className="form-label" htmlFor="liquidity">
                   Needs liquidity within (months, optional)
@@ -466,7 +445,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
                 {
                   label: 'Assets',
                   value: profile.investable_assets
-                    ? `₹${(profile.investable_assets / 1_00_000).toFixed(0)}L`
+                    ? `₹${+(profile.investable_assets / 1_00_000).toFixed(2)}L`
                     : '—',
                 },
                 { label: 'Experience', value: profile.experience || '—' },
@@ -488,18 +467,13 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ profile, update, onSubmit }) 
           <button
             id="get-recommendations-btn"
             type="submit"
-            form="client-questionnaire-form"
             className="btn btn-primary w-full"
             style={{ height: 52, fontSize: 16 }}
             aria-label="Submit profile and get product recommendations"
-            onClick={onSubmit as unknown as React.MouseEventHandler}
           >
             Get Recommendations
             <span aria-hidden="true">→</span>
           </button>
-          <p style={{ fontSize: 12, color: 'var(--stone)', marginTop: 12, textAlign: 'center' }}>
-            Analysis runs in seconds
-          </p>
         </div>
       </div>
     </form>
@@ -533,7 +507,6 @@ const RecommendationView: React.FC<RecViewProps> = ({
               {caseId && <> · Case <span className="mono">{caseId.slice(0, 8)}</span></>}
             </div>
           </div>
-          {result.best && <VerdictBadge verdict={result.best.verdict} />}
         </div>
 
         {result.rationale_text && (

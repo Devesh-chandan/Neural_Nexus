@@ -59,7 +59,10 @@ export interface AnalyzeParams {
   product: ProductConfig;
   profile?: ClientProfile | null;
   include_monte_carlo?: boolean;
+  /** Links the run to the client's case so the client can open it too. */
   case_id?: string | null;
+  /** false for read-only views: nothing is written to runs/audit. */
+  persist?: boolean;
 }
 
 export async function runAnalysis(params: AnalyzeParams): Promise<AnalyzeResponse> {
@@ -118,11 +121,13 @@ export async function runAssessment(
 
 export async function runRecommend(
   profile: ClientProfile,
+  caseId?: string | null,
   filters?: Record<string, unknown>
 ): Promise<RecommendationResult> {
   const { data } = await api.post<RecommendationResult>('/recommend', {
     profile,
     filters,
+    case_id: caseId ?? null,
   });
   return data;
 }
@@ -155,11 +160,20 @@ export async function updateCaseProfile(
   return data;
 }
 
+/**
+ * Recommend analysed terms to a client. The backend checks the RM's jurisdiction,
+ * authorised products and finalisation clearance, and that `runId` analysed these
+ * exact terms for this case.
+ */
 export async function updateCaseProductConfig(
   caseId: string,
-  productConfig: ProductConfig
-): Promise<{ case_id: string; product_config: ProductConfig }> {
-  const { data } = await api.put(`/cases/${caseId}/product-config`, { product_config: productConfig });
+  productConfig: ProductConfig,
+  runId: string
+): Promise<{ case_id: string; product_config: ProductConfig; run_id: string; finalised_by: string; finalised_at: string }> {
+  const { data } = await api.put(`/cases/${caseId}/product-config`, {
+    product_config: productConfig,
+    run_id: runId,
+  });
   return data;
 }
 
@@ -183,6 +197,15 @@ export async function exportRunJson(runId: string): Promise<unknown> {
   return data;
 }
 
+/** The HTML report, fetched with the session token (a plain link would be unauthenticated). */
+export async function exportRunHtml(runId: string): Promise<string> {
+  const { data } = await api.get<string>(`/runs/${runId}/export`, {
+    params: { format: 'html' },
+    responseType: 'text',
+  });
+  return data;
+}
+
 // ── Audit ──────────────────────────────────────────────────────────────────
 
 export async function fetchAudit(runId: string): Promise<AuditResponse> {
@@ -192,13 +215,6 @@ export async function fetchAudit(runId: string): Promise<AuditResponse> {
 
 export async function verifyAuditChain(): Promise<{ ok: boolean; detail: string; count: number }> {
   const { data } = await api.get('/audit/verify-chain');
-  return data;
-}
-
-// ── Health ─────────────────────────────────────────────────────────────────
-
-export async function fetchHealth(): Promise<{ status: string; version: string }> {
-  const { data } = await api.get('/health');
   return data;
 }
 

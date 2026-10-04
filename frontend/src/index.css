@@ -2697,3 +2697,21 @@ input[type="range"]::-webkit-slider-thumb:hover {
     border-radius: var(--r-md);
   }
 }
+
+/* Client portal: What-if and AI rationale share the full width 50/50 */
+.cp-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+  margin-top: 20px;
+}
+.cp-split > div > .rm-green-card,
+.cp-split > div > .rm-purple-card {
+  height: 100%;
+}
+@media (max-width: 1080px) {
+  .cp-split {
+    grid-template-columns: 1fr;
+  }
+}

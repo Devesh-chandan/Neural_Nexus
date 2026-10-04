@@ -319,27 +319,33 @@ export const PriceChart: React.FC<PriceChartProps> = ({
 
 interface MetricsSummaryProps {
   metrics: MetricsBundle;
+  /** Omit Max Gain / Max Loss / FD Baseline when the page already shows them in its header bar. */
+  skipHeadline?: boolean;
 }
 
-export const MetricsSummary: React.FC<MetricsSummaryProps> = ({ metrics }) => {
+export const MetricsSummary: React.FC<MetricsSummaryProps> = ({ metrics, skipHeadline = false }) => {
   const replay = metrics.replay;
   const mc = metrics.monte_carlo;
   const statsSource = mc ?? replay;
 
   return (
     <div className="stat-grid">
-      <StatBox
-        label="Max Gain"
-        value={`+${(metrics.max_gain_pct * 100).toFixed(1)}%`}
-        color="positive"
-        subtext="Total return"
-      />
-      <StatBox
-        label="Max Loss"
-        value={`${(metrics.max_loss_pct * 100).toFixed(1)}%`}
-        color="negative"
-        subtext="Total return"
-      />
+      {!skipHeadline && (
+        <>
+          <StatBox
+            label="Max Gain"
+            value={`+${(metrics.max_gain_pct * 100).toFixed(1)}%`}
+            color="positive"
+            subtext="Total return"
+          />
+          <StatBox
+            label="Max Loss"
+            value={`${(metrics.max_loss_pct * 100).toFixed(1)}%`}
+            color="negative"
+            subtext="Total return"
+          />
+        </>
+      )}
       <StatBox
         label="Stress Loss"
         value={`${(metrics.stress_loss_pct * 100).toFixed(1)}%`}
@@ -368,11 +374,13 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({ metrics }) => {
           />
         </>
       )}
-      <StatBox
-        label="FD Baseline"
-        value={`+${(metrics.fd_baseline.annualised_return * 100).toFixed(1)}%`}
-        subtext={`${(metrics.fd_baseline.rate_pa * 100).toFixed(1)}% p.a.`}
-      />
+      {!skipHeadline && (
+        <StatBox
+          label="FD Baseline"
+          value={`+${(metrics.fd_baseline.annualised_return * 100).toFixed(1)}%`}
+          subtext={`${(metrics.fd_baseline.rate_pa * 100).toFixed(1)}% p.a.`}
+        />
+      )}
       <StatBox
         label="Volatility (EWMA)"
         value={`${(metrics.volatility.ewma * 100).toFixed(1)}%`}

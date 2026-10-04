@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Play, RotateCcw, Sparkles, FileText } from 'lucide-react';
+import { ShieldCheck, Play, RotateCcw, Sparkles, FileText, Download, ExternalLink } from 'lucide-react';
 import { runAssessment } from '../api';
 import type {
   AssessmentCheckKey,
@@ -10,6 +10,7 @@ import type {
   ProductConfig,
 } from '../types';
 import { Alert, Spinner } from './UIKit';
+import { downloadClientReport, previewClientReport } from './clientReport';
 
 // Module 3 status -> existing verdict-badge / rule-dot colour classes.
 const VERDICT_CLASS: Record<AssessmentStatus, string> = {
@@ -64,11 +65,15 @@ interface Props {
   /** Case ID of the selected client; only registered (persisted) clients can be assessed. */
   clientId: string;
   clientName: string;
+  /** Shown on the client report as the preparer. */
+  rmName?: string;
   persisted: boolean;
-  product: ProductConfig;
+  product: ProductConfig | null;
+  /** Called with each new result (null when the client or terms change). */
+  onResult?: (result: AssessmentResponse | null) => void;
 }
 
-const SuitabilityAssessmentCard: React.FC<Props> = ({ clientId, clientName, persisted, product }) => {
+const SuitabilityAssessmentCard: React.FC<Props> = ({ clientId, clientName, rmName, persisted, product, onResult }) => {
   const [result, setResult] = useState<AssessmentResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,13 +83,18 @@ const SuitabilityAssessmentCard: React.FC<Props> = ({ clientId, clientName, pers
   useEffect(() => {
     setResult(null);
     setError(null);
+    onResult?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, productKey]);
 
   const run = async () => {
+    if (!product) return;
     setLoading(true);
     setError(null);
     try {
-      setResult(await runAssessment(clientId, product));
+      const res = await runAssessment(clientId, product);
+      setResult(res);
+      onResult?.(res);
     } catch (err: unknown) {
       const e = err as { detail?: string };
       setError(e?.detail ?? 'Assessment failed. Is the backend running?');
@@ -121,7 +131,7 @@ const SuitabilityAssessmentCard: React.FC<Props> = ({ clientId, clientName, pers
               style={{ fontSize: 11, color: 'var(--stone)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
             >
               {usedTemplate ? <FileText size={11} /> : <Sparkles size={11} />}
-              {usedTemplate ? 'Template explanation' : `Groq · ${result.explanation.model}`}
+              {usedTemplate ? 'Template explanation' : `AI · ${result.explanation.model}`}
             </span>
           )}
         </div>
@@ -138,7 +148,7 @@ const SuitabilityAssessmentCard: React.FC<Props> = ({ clientId, clientName, pers
 
       {!persisted && (
         <div style={{ fontSize: 13, color: 'var(--stone)' }}>
-          Select a registered client (e.g. CLT-IN-0001) to run the rule-based suitability assessment on these terms.
+          Select a registered client to run the rule-based suitability assessment on these terms.
         </div>
       )}
 
@@ -258,6 +268,45 @@ const SuitabilityAssessmentCard: React.FC<Props> = ({ clientId, clientName, pers
               )}
             </div>
           )}
+
+          {/* Plain-English, client-facing summary to hand over */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '12px 14px',
+              border: '1px solid rgba(73, 79, 223, 0.35)',
+              background: 'rgba(73, 79, 223, 0.08)',
+              borderRadius: 'var(--r-md)',
+            }}
+          >
+            <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--on-dark)' }}>Report for client</div>
+              <div style={{ fontSize: 12, color: 'var(--stone)', lineHeight: 1.5 }}>
+                A short, jargon-free summary for {clientName || 'the client'}: the answer, what they told us, how the
+                product measures up, and one chart of real past results.
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn btn-outline-dark btn-sm"
+                style={{ height: 32, padding: '2px 12px', fontSize: 12 }}
+                onClick={() => previewClientReport(result, { clientName, rmName })}
+              >
+                <ExternalLink size={13} /> Preview
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                style={{ height: 32, padding: '2px 14px', fontSize: 12 }}
+                onClick={() => downloadClientReport(result, { clientName, rmName })}
+              >
+                <Download size={13} /> Download PDF
+              </button>
+            </div>
+          </div>
 
           <div className="mono" style={{ fontSize: 11, color: 'var(--stone)', lineHeight: 1.6 }}>
             {worst && (

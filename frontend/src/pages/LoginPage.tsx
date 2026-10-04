@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Wordmark from '../components/Wordmark';
 import {
   ArrowLeft,
   User,
@@ -85,8 +86,7 @@ const LoginPage: React.FC = () => {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Link to="/" className="navbar-logo" style={{ justifyContent: 'center', marginBottom: 28 }}>
-            <img src="/logo.png" alt="" aria-hidden="true" className="navbar-logo-img" />
-            <span>Neural Nexus</span>
+            <Wordmark size={20} />
           </Link>
           <h1 className="display-md" style={{ color: 'var(--on-dark)', marginBottom: 10 }}>
             Sign in

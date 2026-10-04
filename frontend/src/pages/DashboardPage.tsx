@@ -15,7 +15,8 @@ import {
   X,
   ArrowLeft,
 } from 'lucide-react';
-import { fetchRun, fetchAudit, exportRunJson } from '../api';
+import { fetchRun, fetchAudit, exportRunJson, exportRunHtml } from '../api';
+import { useAuth } from '../hooks/useAuth';
 import type { RunResponse, AuditResponse } from '../types';
 import {
   LoadingOverlay,
@@ -36,12 +37,14 @@ import {
 } from '../components/Charts';
 import SuitabilityPanel from '../components/SuitabilityPanel';
 import ExplanationCard from '../components/ExplanationCard';
+import { compactAmount, currencySymbol } from '../lib/format';
 
 type Tab = 'overview' | 'payoff' | 'scenarios' | 'replay' | 'mc' | 'suitability' | 'explanation' | 'audit';
 
 const DashboardPage: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
+  const { role } = useAuth();
 
   const [run, setRun] = useState<RunResponse | null>(null);
   const [audit, setAudit] = useState<AuditResponse | null>(null);
@@ -49,12 +52,14 @@ const DashboardPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!runId) return;
     setLoading(true);
     setError(null);
-    Promise.all([fetchRun(runId), fetchAudit(runId).catch(() => null)])
+    // Audit records are RM-only.
+    Promise.all([fetchRun(runId), role === 'rm' ? fetchAudit(runId).catch(() => null) : Promise.resolve(null)])
       .then(([r, a]) => {
         setRun(r);
         setAudit(a);
@@ -63,7 +68,7 @@ const DashboardPage: React.FC = () => {
         setError(err?.detail ?? 'Failed to load run.');
       })
       .finally(() => setLoading(false));
-  }, [runId]);
+  }, [runId, role]);
 
   const handleExport = async () => {
     if (!runId) return;
@@ -78,15 +83,27 @@ const DashboardPage: React.FC = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setError('Export failed.');
+      setExportError('JSON export failed.');
     } finally {
       setExporting(false);
     }
   };
 
-  const handleHtmlExport = () => {
+  const handleHtmlExport = async () => {
     if (!runId) return;
-    window.open(`/api/runs/${runId}/export?format=html`, '_blank');
+    // Open the tab synchronously so the popup blocker allows it, then fill it once the
+    // authenticated request returns.
+    const tab = window.open('', '_blank');
+    try {
+      const html = await exportRunHtml(runId);
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      if (tab) tab.location.href = url;
+      else window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err: unknown) {
+      tab?.close();
+      setExportError((err as { detail?: string })?.detail ?? 'HTML export failed.');
+    }
   };
 
   if (loading) {
@@ -178,7 +195,7 @@ const DashboardPage: React.FC = () => {
                 <button
                   id="export-json-btn"
                   className="btn btn-outline-dark btn-sm"
-                  onClick={handleExport}
+                  onClick={() => { setExportError(null); void handleExport(); }}
                   disabled={exporting}
                   aria-label="Export run as JSON"
                 >
@@ -187,7 +204,7 @@ const DashboardPage: React.FC = () => {
                 <button
                   id="export-html-btn"
                   className="btn btn-outline-dark btn-sm"
-                  onClick={handleHtmlExport}
+                  onClick={() => { setExportError(null); void handleHtmlExport(); }}
                   aria-label="Export run as HTML report"
                 >
                   <FileText size={14} /> HTML
@@ -216,10 +233,10 @@ const DashboardPage: React.FC = () => {
             />
             <StatBox
               label="Principal"
-              value={`₹${(product as { principal: number }).principal.toLocaleString('en-IN', {
-                maximumFractionDigits: 0,
-                notation: 'compact',
-              })}`}
+              value={compactAmount(
+                (product as { principal: number }).principal,
+                (product as { currency: string }).currency,
+              )}
               subtext={(product as { currency: string }).currency}
             />
             <StatBox label="Max Gain" value={`+${(metrics.max_gain_pct * 100).toFixed(1)}%`} color="positive" />
@@ -230,6 +247,11 @@ const DashboardPage: React.FC = () => {
               subtext="p.a."
             />
           </div>
+          {exportError && (
+            <Alert variant="error" className="mt-3">
+              {exportError}
+            </Alert>
+          )}
           {metrics.pricing.flag === 'coupon_above_indicative' && (
             <Alert variant="warning" className="mt-3">
               Coupon exceeds the indicative fair value. Review with issuer.
@@ -277,8 +299,8 @@ const DashboardPage: React.FC = () => {
                   {/* Left */}
                   <div>
                     <div className="card mb-4">
-                      <div className="card-title mb-3">Full Metrics</div>
-                      <MetricsSummary metrics={metrics} />
+                      <div className="card-title mb-3">Risk Metrics</div>
+                      <MetricsSummary metrics={metrics} skipHeadline />
                     </div>
                     <div className="card">
                       <div className="card-title mb-3">Product Parameters</div>
@@ -345,7 +367,8 @@ const DashboardPage: React.FC = () => {
               <div className="card animate-in">
                 <div className="card-title mb-1">Scenario Analysis</div>
                 <div className="card-subtitle mb-4">
-                  Principal: ₹{(product as { principal: number }).principal.toLocaleString('en-IN')}
+                  Principal: {currencySymbol((product as { currency: string }).currency)}
+                  {(product as { principal: number }).principal.toLocaleString('en-IN')}
                 </div>
                 <ScenarioTable
                   rows={metrics.scenario_table}
@@ -525,7 +548,6 @@ const DashboardPage: React.FC = () => {
                     value={`${(metrics.monte_carlo.worst_loss_pct * 100).toFixed(1)}%`}
                     color="negative"
                   />
-                  <StatBox label="Paths" value={metrics.monte_carlo.n_paths.toLocaleString()} />
                 </div>
                 <div className="mt-4">
                   <HistogramChart
