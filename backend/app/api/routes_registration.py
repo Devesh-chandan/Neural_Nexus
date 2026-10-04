@@ -20,6 +20,7 @@ POST /api/registration/rm/:rm_id/finalise     – RBAC gate on confirming a conf
 """
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -36,8 +37,9 @@ from app.core.supabase import (
 from app.core.rbac import (
     PERM_FINALISE_CONFIGURATION,
     permissions_for_tier,
-    product_jurisdiction_error,
+    rm_product_error,
     tier_cannot_finalise_reason,
+    tier_entry,
 )
 from app.kyc.providers import import_kyc, list_providers
 from app.registration.service import (
@@ -58,7 +60,7 @@ from app.schemas.registration import (
     RMSRegistration,
     RMSRegistrationResponse,
 )
-from app.store.cases import create_case, delete_case, get_case
+from app.store.cases import create_case, delete_case, get_case, normalize_profile
 from app.store.db import init_db
 from app.store.rms import (
     find_rm_by_employee_id,
@@ -90,7 +92,7 @@ RM_DISCLAIMER = (
 # ═══ KYC import ═════════════════════════════════════════════════════════════
 
 @router.get("/kyc/providers", response_model=ProvidersResponse)
-async def kyc_providers() -> ProvidersResponse:
+def kyc_providers() -> ProvidersResponse:
     """Brokerage / wealth apps a client can import their KYC from."""
     return ProvidersResponse(
         providers=[ProviderInfo(**p) for p in list_providers()],
@@ -99,7 +101,7 @@ async def kyc_providers() -> ProvidersResponse:
 
 
 @router.post("/kyc/import", response_model=KycImportResponse)
-async def kyc_import(req: KycImportRequest) -> KycImportResponse:
+def kyc_import(req: KycImportRequest) -> KycImportResponse:
     """
     Import KYC from an existing trading / wealth app.
 
@@ -127,7 +129,7 @@ class ClientRegistrationRequest(BaseModel):
 
 
 @router.post("/registration/client", response_model=ClientRegistrationResponse)
-async def register_client(req: ClientRegistrationRequest) -> ClientRegistrationResponse:
+def register_client(req: ClientRegistrationRequest) -> ClientRegistrationResponse:
     """Register a client: KYC identity + financial capacity + suitability answers."""
     init_db()
 
@@ -184,7 +186,7 @@ async def register_client(req: ClientRegistrationRequest) -> ClientRegistrationR
 
     try:
         case_id = create_case(
-            profile.model_dump(mode="json"),
+            profile.stored_dict(),
             profile.client_name,
             owner_user_id=portal_account_id,
         )
@@ -220,7 +222,7 @@ async def register_client(req: ClientRegistrationRequest) -> ClientRegistrationR
 
 
 @router.get("/registration/client/{case_id}")
-async def get_registered_client(case_id: str, request: Request) -> Dict[str, Any]:
+def get_registered_client(case_id: str, request: Request) -> Dict[str, Any]:
     """Load a registered client's profile for a returning session."""
     row = get_case(case_id)
     if row is None:
@@ -232,7 +234,7 @@ async def get_registered_client(case_id: str, request: Request) -> Dict[str, Any
         "case_id": row["case_id"],
         "client_name": row["client_name"],
         "created_at": row["created_at"],
-        "profile": row["profile_json"],
+        "profile": normalize_profile(json.loads(row["profile_json"]), row["client_name"]),
     }
 
 
@@ -252,7 +254,7 @@ class EmailCheckResponse(BaseModel):
 
 
 @router.post("/registration/validate/email", response_model=EmailCheckResponse)
-async def validate_email(req: EmailCheckRequest) -> EmailCheckResponse:
+def validate_email(req: EmailCheckRequest) -> EmailCheckResponse:
     """
     Live corporate-email check so the RM form can reject a personal mailbox
     before submission.
@@ -274,7 +276,7 @@ async def validate_email(req: EmailCheckRequest) -> EmailCheckResponse:
 
 
 @router.get("/registration/rms")
-async def list_rms_route() -> Dict[str, Any]:
+def list_rms_route() -> Dict[str, Any]:
     """List all registered relationship managers in database."""
     init_db()
     rms = list_all_rms()
@@ -282,7 +284,7 @@ async def list_rms_route() -> Dict[str, Any]:
 
 
 @router.get("/registration/access-tiers")
-async def access_tiers() -> Dict[str, Any]:
+def access_tiers() -> Dict[str, Any]:
     """Access-tier catalogue used to render the RBAC section of the RM form."""
     cfg = get_registration_config()
     return {
@@ -294,7 +296,7 @@ async def access_tiers() -> Dict[str, Any]:
 
 
 @router.get("/registration/jurisdictions")
-async def jurisdictions() -> Dict[str, Any]:
+def jurisdictions() -> Dict[str, Any]:
     """Jurisdiction catalogue plus the product matrix each region permits."""
     cfg = get_registration_config()
     return {
@@ -312,7 +314,7 @@ async def jurisdictions() -> Dict[str, Any]:
 
 
 @router.post("/registration/rm", response_model=RMSRegistrationResponse)
-async def register_rm_route(req: RMSRegistration) -> RMSRegistrationResponse:
+def register_rm_route(req: RMSRegistration) -> RMSRegistrationResponse:
     """
     Register a Relationship Manager.
 
@@ -401,7 +403,7 @@ async def register_rm_route(req: RMSRegistration) -> RMSRegistrationResponse:
 
 
 @router.get("/registration/rm/{rm_id}")
-async def get_rm_route(rm_id: str) -> Dict[str, Any]:
+def get_rm_route(rm_id: str) -> Dict[str, Any]:
     """Load an RM record together with their effective RBAC summary."""
     from app.core.rbac import rbac_summary
 
@@ -416,7 +418,7 @@ async def get_rm_route(rm_id: str) -> Dict[str, Any]:
 
 
 @router.get("/registration/rm/{rm_id}/branch")
-async def get_branch_roster(rm_id: str) -> Dict[str, Any]:
+def get_branch_roster(rm_id: str) -> Dict[str, Any]:
     """
     Branch roster. Requires the `view_team_reports` permission – a junior RM or
     senior advisor cannot enumerate colleagues.
@@ -459,7 +461,7 @@ class ProductCheckResponse(BaseModel):
 
 
 @router.post("/registration/rm/{rm_id}/product-check", response_model=ProductCheckResponse)
-async def product_check(rm_id: str, req: ProductCheckRequest) -> ProductCheckResponse:
+def product_check(rm_id: str, req: ProductCheckRequest) -> ProductCheckResponse:
     """
     Can this RM configure this product type?
 
@@ -469,30 +471,18 @@ async def product_check(rm_id: str, req: ProductCheckRequest) -> ProductCheckRes
     if record is None:
         raise AppError(404, "RM_NOT_FOUND", f"Relationship manager {rm_id} not found.")
 
-    permitted = record["authorised_product_types"]
     requested = req.product_type.upper()
-
-    if requested not in permitted:
-        return ProductCheckResponse(
-            allowed=False,
-            product_type=requested,
-            jurisdiction=record["operating_jurisdiction"],
-            reason=(
-                product_jurisdiction_error(record["operating_jurisdiction"], requested)
-                or f"{requested} is not in your authorised product list."
-            ),
-        )
-
+    reason = rm_product_error(record, requested)
     return ProductCheckResponse(
-        allowed=True,
+        allowed=reason is None,
         product_type=requested,
         jurisdiction=record["operating_jurisdiction"],
-        reason=None,
+        reason=reason,
     )
 
 
 @router.post("/registration/rm/{rm_id}/finalise", response_model=FinaliseResponse)
-async def finalise_configuration(
+def finalise_configuration(
     rm_id: str, req: FinaliseRequest
 ) -> FinaliseResponse:
     """
@@ -523,7 +513,7 @@ async def finalise_configuration(
             run_id=req.run_id,
             access_tier=tier,
             reason=blocked_reason,
-            escalate_to=get_registration_config()["access_tiers"][tier].get("escalate_to"),
+            escalate_to=(tier_entry(tier) or {}).get("escalate_to"),
             finalised_at=ts,
         )
 
@@ -539,8 +529,10 @@ async def finalise_configuration(
 
 
 @router.get("/registration/finalisations/{run_id}")
-async def finalisation_status(run_id: str) -> Dict[str, Any]:
+def finalisation_status(run_id: str, request: Request) -> Dict[str, Any]:
     """Who (if anyone) confirmed this configuration, and when."""
+    if request.state.user.get("user_type") != "rm":
+        raise AppError(403, "FORBIDDEN", "Finalisation records are restricted to relationship managers.")
     record = get_finalisation(run_id)
     if record is None:
         return {"run_id": run_id, "finalised": False, "detail": "Not finalised."}

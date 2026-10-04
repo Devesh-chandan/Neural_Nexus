@@ -24,5 +24,5 @@ class SimulateRequest(BaseModel):
 
 
 @router.post("/simulate")
-async def simulate(req: SimulateRequest) -> Dict[str, Any]:
+def simulate(req: SimulateRequest) -> Dict[str, Any]:
     return simulate_product(req.product, req.history_until)

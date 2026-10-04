@@ -66,8 +66,8 @@ def build_payload(
             "horizon_months": profile.horizon_months,
             "loss_tolerance_pct": profile.loss_tolerance_pct,
             "experience": profile.experience,
-            "investment_amount": profile.investment_amount,
-            "investable_assets": profile.investable_assets,
+            "investment_amount_inr": profile.investment_amount,
+            "investable_assets_inr": profile.investable_assets,
         }
 
     if suitability is not None:

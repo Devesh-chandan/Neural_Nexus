@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from app.core.config import get_registration_config
-from app.core.rbac import permissions_for_tier, rbac_summary
+from app.core.rbac import permissions_for_tier, rbac_summary, tier_entry, tier_key
 from app.schemas.client import ClientProfile
 from app.schemas.registration import (
     BrokerLink,
@@ -46,7 +46,7 @@ def to_client_profile(reg: ClientRegistration) -> ClientProfile:
     * ``risk_appetite``                  → ``risk_appetite``
     * ``investment_horizon_years``       → ``horizon_months`` (years × 12)
     * ``loss_tolerance_pct``             → ``loss_tolerance_pct``
-    * ``current_portfolio_concentration_pct`` → ``existing_structured_pct``
+    * ``current_portfolio_concentration_pct`` → ``existing_exposure_underlying_pct``
 
     and ``liquid_net_worth`` becomes ``investable_assets`` so the existing
     concentration rule keeps measuring the right denominator.
@@ -64,7 +64,8 @@ def to_client_profile(reg: ClientRegistration) -> ClientProfile:
         investable_assets=reg.financials.liquid_net_worth,
         investment_amount=reg.financials.investment_amount,
         existing_exposure_underlying_pct=concentration_pct,
-        existing_structured_pct=concentration_pct,
+        # The questionnaire does not ask for an existing structured-product share.
+        existing_structured_pct=None,
         experience=reg.suitability.experience,
         date_of_birth=reg.identity.date_of_birth,
         employment_status=reg.identity.employment_status,
@@ -108,8 +109,8 @@ def register_rm_record(reg: RMSRegistration) -> RMSRegistrationResponse:
         jurisdiction, reg.compliance.product_types_authorised
     )
 
-    tier_cfg = get_registration_config()["access_tiers"].get(reg.access.access_tier, {})
-    effective_tier = reg.access.access_tier
+    tier_cfg = tier_entry(reg.access.access_tier) or {}
+    effective_tier = tier_key(reg.access.access_tier)
 
     # Principle of least privilege: an RM can never hold a tier above the rank
     # their own clearance allows them to grant.
@@ -137,7 +138,7 @@ def register_rm_record(reg: RMSRegistration) -> RMSRegistrationResponse:
 
 def describe_rm_tier(access_tier: str) -> Dict[str, Any]:
     """Public description of an access tier for the registration UI."""
-    entry = get_registration_config()["access_tiers"].get(access_tier, {})
+    entry = tier_entry(access_tier) or {}
     perms = permissions_for_tier(access_tier)
     summary = rbac_summary(access_tier, "IN")
     return {

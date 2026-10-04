@@ -7,18 +7,20 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Request
+from pydantic import BaseModel, ValidationError
 
 from app.analytics.metrics import compute_metrics
+from app.api.routes_cases import _ensure_case_access
 from app.core.errors import AppError
 from app.explain.payload import build_payload
 from app.explain.service import generate_explanation
+from app.market.fx import inr_rate
 from app.market.service import get_history
-from app.schemas.analysis import AnalyzeResponse
 from app.schemas.client import ClientProfile
 from app.schemas.product import parse_product_dict
 from app.store.audit import append_audit
+from app.store.cases import get_case
 from app.store.db import init_db
 from app.store.runs import generate_run_id, save_run
 from app.suitability.engine import evaluate_suitability
@@ -39,6 +41,9 @@ class AnalyzeRequest(BaseModel):
     profile: Optional[Dict[str, Any]] = None
     include_monte_carlo: bool = False
     case_id: Optional[str] = None
+    # Read-only views (e.g. the client portal re-showing a recommendation) skip the
+    # run/audit write; analyses an RM acts on are always persisted.
+    persist: bool = True
 
 
 class SuitabilityOnlyRequest(BaseModel):
@@ -49,17 +54,20 @@ class SuitabilityOnlyRequest(BaseModel):
 def _parse_product(data: Dict[str, Any]) -> object:
     try:
         return parse_product_dict(data)
-    except ValueError as exc:
+    except (ValueError, ValidationError) as exc:
         raise AppError(422, "VALIDATION_ERROR", str(exc))
 
 
 @router.post("/analyze")
-async def analyze(req: AnalyzeRequest) -> Dict[str, Any]:
+def analyze(req: AnalyzeRequest, request: Request) -> Dict[str, Any]:
     init_db()
-    try:
-        config = _parse_product(req.product)
-    except Exception as exc:
-        raise AppError(422, "VALIDATION_ERROR", str(exc))
+    if req.case_id:
+        case = get_case(req.case_id)
+        if case is None:
+            raise AppError(404, "CASE_NOT_FOUND", "Case not found.")
+        _ensure_case_access(case, request.state.user)
+
+    config = _parse_product(req.product)
 
     underlying_key = config.underlying  # type: ignore[attr-defined]
     try:
@@ -68,26 +76,42 @@ async def analyze(req: AnalyzeRequest) -> Dict[str, Any]:
         raise AppError(404, "DATA_NOT_FOUND", str(exc))
 
     metrics = compute_metrics(config, df["close"], include_monte_carlo=req.include_monte_carlo)
+    fx = inr_rate(config.currency)  # type: ignore[attr-defined]
 
     profile: Optional[ClientProfile] = None
     suitability = None
     if req.profile:
         try:
             profile = ClientProfile(**req.profile)
-            suitability = evaluate_suitability(config, profile, metrics)
         except Exception as exc:
-            logger.warning("Suitability evaluation failed: %s", exc)
-
-    explanation = None
-    if profile and suitability:
-        facts = build_payload(config, profile, metrics, suitability, source, as_of, snap, "TMP")
-        explanation = generate_explanation(facts)
+            raise AppError(422, "VALIDATION_ERROR", f"Invalid profile: {exc}")
+        # The amount assessed is this product's principal, in INR.
+        profile = profile.model_copy(update={"investment_amount": config.principal * fx.inr_per_unit})  # type: ignore[attr-defined]
+        suitability = evaluate_suitability(config, profile, metrics)
 
     run_id = generate_run_id()
-
-    # Update facts with real run_id
+    explanation = None
     if profile and suitability:
         facts = build_payload(config, profile, metrics, suitability, source, as_of, snap, run_id)
+        explanation = generate_explanation(facts)
+
+    response: Dict[str, Any] = {
+        "run_id": run_id if req.persist else None,
+        "metrics": metrics.model_dump(),
+        "data_source": source,
+        "as_of": as_of,
+        "snapshot_id": snap,
+        "product": config.model_dump(mode="json"),  # type: ignore[attr-defined]
+        "principal_inr": round(config.principal * fx.inr_per_unit, 2),  # type: ignore[attr-defined]
+        "fx": fx.as_dict(),
+        "disclaimer": DISCLAIMER,
+    }
+    if suitability:
+        response["suitability"] = suitability.model_dump()
+    if explanation:
+        response["explanation"] = explanation.model_dump()
+    if not req.persist:
+        return response
 
     # Persist
     save_run(
@@ -127,29 +151,13 @@ async def analyze(req: AnalyzeRequest) -> Dict[str, Any]:
             prompt_version=explanation.prompt_version,
         )
 
-    response: Dict[str, Any] = {
-        "run_id": run_id,
-        "metrics": metrics.model_dump(),
-        "data_source": source,
-        "as_of": as_of,
-        "snapshot_id": snap,
-        "disclaimer": DISCLAIMER,
-    }
-    if suitability:
-        response["suitability"] = suitability.model_dump()
-    if explanation:
-        response["explanation"] = explanation.model_dump()
-
     return response
 
 
 @router.post("/suitability")
-async def suitability_only(req: SuitabilityOnlyRequest) -> Dict[str, Any]:
+def suitability_only(req: SuitabilityOnlyRequest) -> Dict[str, Any]:
     """Fast suitability check – reuses cached history, no persistence."""
-    try:
-        config = _parse_product(req.product)
-    except Exception as exc:
-        raise AppError(422, "VALIDATION_ERROR", str(exc))
+    config = _parse_product(req.product)
 
     try:
         profile = ClientProfile(**req.profile)

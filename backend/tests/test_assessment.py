@@ -32,7 +32,7 @@ SEEDED_CLIENT = {
 }
 
 ELN_PRODUCT = {
-    "product_type": "ELN", "underlying": "NIFTY", "tenor_months": 12,
+    "product_type": "ELN", "underlying": "NIFTY50", "tenor_months": 12,
     "principal": 1_000_000, "barrier_pct": 0.7, "coupon_pa": 0.1,
 }
 
@@ -56,7 +56,7 @@ def synthetic_prices(tmp_path, monkeypatch):
     rng = np.random.default_rng(42)
     closes = 100 * np.cumprod(1 + rng.normal(0.0003, 0.012, len(dates)))
     pd.DataFrame({"Date": dates.strftime("%Y-%m-%d"), "Close": closes}).to_csv(
-        prices_dir / "NIFTY.csv", index=False
+        prices_dir / "NIFTY50.csv", index=False
     )
     monkeypatch.setattr(simulation_service, "MODULE2_DATA_DIR", str(tmp_path))
 

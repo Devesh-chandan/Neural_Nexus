@@ -299,6 +299,8 @@ class ProviderInfo(BaseModel):
     auth: str
     scopes: List[str]
     notes: str
+    # False until a live OAuth connector for this provider is configured.
+    connected: bool = False
 
 
 class ProvidersResponse(BaseModel):

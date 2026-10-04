@@ -25,9 +25,12 @@ class ClientProfile(BaseModel):
     horizon_months: int = Field(ge=3, le=120)
     loss_tolerance_pct: float = Field(ge=0, le=100)
     investable_assets: float = Field(gt=0)
-    investment_amount: float = Field(gt=0)
+    # Planned ticket size. Unknown (None) until the client states it; when a specific
+    # product is assessed, the product's principal is the amount being invested.
+    investment_amount: Optional[float] = Field(default=None, gt=0)
     existing_exposure_underlying_pct: float = Field(default=0.0, ge=0, le=100)
-    existing_structured_pct: float = Field(default=0.0, ge=0, le=100)
+    # Share already held in structured products; None when the record does not say.
+    existing_structured_pct: Optional[float] = Field(default=None, ge=0, le=100)
     experience: Literal["novice", "intermediate", "experienced"] = "novice"
     target_return_pa: Optional[float] = None
     preferred_underlying_types: Optional[List[str]] = None
@@ -47,11 +50,18 @@ class ClientProfile(BaseModel):
     source_of_funds: Optional[str] = None
     previous_investment_exposure_pct: Optional[float] = Field(default=None, ge=0, le=100)
 
+    def stored_dict(self) -> dict:
+        """The answers as persisted: derived (computed) fields are recalculated on load."""
+        return self.model_dump(
+            mode="json",
+            exclude={"amount_pct_of_assets", "age_years", "allocation_of_liquid_net_worth", "income_multiple"},
+        )
+
     @computed_field  # type: ignore[misc]
     @property
-    def amount_pct_of_assets(self) -> float:
-        if self.investable_assets <= 0:
-            return 0.0
+    def amount_pct_of_assets(self) -> Optional[float]:
+        if self.investment_amount is None or self.investable_assets <= 0:
+            return None
         return self.investment_amount / self.investable_assets
 
     @computed_field  # type: ignore[misc]
@@ -71,7 +81,7 @@ class ClientProfile(BaseModel):
     @property
     def allocation_of_liquid_net_worth(self) -> Optional[float]:
         """Investment amount as a share of liquid net worth (None if unknown)."""
-        if not self.liquid_net_worth:
+        if not self.liquid_net_worth or self.investment_amount is None:
             return None
         return self.investment_amount / self.liquid_net_worth
 
@@ -79,6 +89,6 @@ class ClientProfile(BaseModel):
     @property
     def income_multiple(self) -> Optional[float]:
         """Investment amount as a multiple of annual income (None if unknown)."""
-        if not self.annual_income:
+        if not self.annual_income or self.investment_amount is None:
             return None
         return self.investment_amount / self.annual_income

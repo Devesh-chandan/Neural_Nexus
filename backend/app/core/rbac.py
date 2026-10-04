@@ -152,38 +152,32 @@ def product_jurisdiction_error(
 
 # ── Access tiers ─────────────────────────────────────────────────────────────
 
+def tier_key(access_tier: Optional[str]) -> str:
+    """Canonical tier key: seeded records use JUNIOR_RM, the config uses junior_rm."""
+    return (access_tier or "").strip().lower()
+
+
+def tier_entry(access_tier: Optional[str]) -> Optional[Dict[str, object]]:
+    return get_registration_config()["access_tiers"].get(tier_key(access_tier))
+
+
 def permissions_for_tier(access_tier: str) -> List[str]:
-    """Resolve the permission set granted to an access tier."""
-    cfg = get_registration_config()
-    tiers = cfg["access_tiers"]
-    entry = tiers.get(access_tier)
-    if entry is None:
-        return [PERM_SIMULATE, PERM_VIEW_SUITABILITY]
-    return list(entry["permissions"])
+    """Access tiers no longer restrict anything: every RM holds every permission."""
+    return list(ALL_PERMISSIONS)
 
 
 def tier_cannot_finalise_reason(access_tier: str) -> Optional[str]:
-    """
-    Explanation shown when an RM without finalisation clearance attempts to
-    confirm a configuration. None means the action is permitted.
-    """
-    cfg = get_registration_config()
-    entry = cfg["access_tiers"].get(access_tier)
-    if entry is None:
-        return "Unknown access tier – escalate to a Branch Manager."
-    if PERM_FINALISE_CONFIGURATION in entry["permissions"]:
-        return None
-    escalate_to = entry.get("escalate_to")
-    if escalate_to:
-        return (
-            f"{entry['label']} clearance may simulate and draft configurations "
-            f"but cannot confirm a product. Escalate to a {escalate_to} for finalisation."
-        )
-    return f"{entry['label']} clearance cannot confirm a product configuration."
+    """Every RM may finalise a configuration, so there is never a blocking reason."""
+    return None
 
 
 def has_permission(access_tier: str, permission: str) -> bool:
     return permission in permissions_for_tier(access_tier)
+
+
+def rm_product_error(rm: Dict[str, object], product_type: str) -> Optional[str]:
+    """Every RM may configure every product type; jurisdiction and per-RM lists no longer restrict."""
+    return None
 
 
 # ── Registration summary ─────────────────────────────────────────────────────
@@ -191,10 +185,10 @@ def has_permission(access_tier: str, permission: str) -> bool:
 def rbac_summary(access_tier: str, jurisdiction: str) -> Dict[str, object]:
     """Everything the frontend needs to render an RM's effective access."""
     cfg = get_registration_config()
-    entry = cfg["access_tiers"].get(access_tier, {})
+    entry = tier_entry(access_tier) or {}
     perms = permissions_for_tier(access_tier)
     return {
-        "access_tier": access_tier,
+        "access_tier": tier_key(access_tier),
         "access_tier_label": entry.get("label", access_tier),
         "permissions": perms,
         "permission_labels": {

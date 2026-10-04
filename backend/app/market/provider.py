@@ -22,7 +22,11 @@ def download_history(
     end: Optional[str] = None,
 ) -> pd.DataFrame:
     """
-    Download daily adjusted-close history for *ticker* from yfinance.
+    Download daily close history for *ticker* from yfinance.
+
+    Uses the split-adjusted, not dividend-adjusted, close: barriers, strikes and
+    fixings reference the traded price, and it is the same series the historical
+    replay engine (module2 sim_engine) uses, so both read identical prices.
 
     Returns a DataFrame with a 'close' column indexed by date.
     Raises RuntimeError on failure or empty result.
@@ -34,7 +38,7 @@ def download_history(
             ticker,
             start=start,
             end=end_dt,
-            auto_adjust=True,
+            auto_adjust=False,
             progress=False,
         )
     except Exception as exc:
@@ -47,9 +51,9 @@ def download_history(
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
 
-    # yfinance 1.x uses "Close" (with capital C)
+    # yfinance 1.x uses "Close" (with capital C); "Adj Close" is the dividend-adjusted one.
     close_col = next(
-        (c for c in raw.columns if c.lower() == "close"),
+        (c for c in raw.columns if str(c).lower() == "close"),
         None
     )
     if close_col is None:

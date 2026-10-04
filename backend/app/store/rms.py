@@ -149,9 +149,13 @@ def record_finalisation(
     try:
         with conn:
             conn.execute(
-                """INSERT INTO run_finalisations (run_id, rm_id, allowed, access_tier, reason, finalised_at) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (run_id) DO UPDATE SET rm_id=EXCLUDED.rm_id, allowed=EXCLUDED.allowed, access_tier=EXCLUDED.access_tier, reason=EXCLUDED.reason, finalised_at=EXCLUDED.finalised_at --
+                """INSERT INTO run_finalisations
                    (run_id, rm_id, allowed, access_tier, reason, finalised_at)
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                   VALUES (%s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (run_id) DO UPDATE SET
+                   rm_id=EXCLUDED.rm_id, allowed=EXCLUDED.allowed,
+                   access_tier=EXCLUDED.access_tier, reason=EXCLUDED.reason,
+                   finalised_at=EXCLUDED.finalised_at""",
                 (run_id, rm_id, 1 if allowed else 0, access_tier, reason, now),
             )
     finally:

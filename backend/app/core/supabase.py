@@ -1,6 +1,10 @@
 """Server-side Supabase Auth and profile helpers."""
 from __future__ import annotations
 
+import base64
+import json
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from urllib.parse import quote
 
@@ -21,16 +25,72 @@ def _settings() -> tuple[str, str, str]:
     )
 
 
+_TOKEN_CACHE_TTL = 60.0
+_token_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
 def verify_access_token(token: str) -> dict[str, Any]:
+    """Validate the bearer token and load its profile, caching successes briefly.
+
+    Verification costs two Supabase round-trips, so repeat requests with the same token
+    within the TTL reuse the result (a revoked token stays valid for at most the TTL).
+    """
+    now = time.monotonic()
+    hit = _token_cache.get(token)
+    if hit and hit[0] > now:
+        return hit[1]
+    profile = _verify_access_token_remote(token)
+    if len(_token_cache) > 512:
+        _token_cache.clear()
+    _token_cache[token] = (now + _TOKEN_CACHE_TTL, profile)
+    return profile
+
+
+# Shared client: keeps TLS connections to Supabase alive instead of re-handshaking per call.
+_http = httpx.Client(timeout=10.0, limits=httpx.Limits(max_keepalive_connections=10))
+
+
+def _jwt_subject(token: str) -> str | None:
+    """Unverified `sub` claim, used only to start the profile lookup in parallel.
+
+    The token is still validated by Supabase Auth, and the result is rejected unless
+    the verified user id matches this value.
+    """
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        sub = json.loads(base64.urlsafe_b64decode(payload)).get("sub")
+        return sub if isinstance(sub, str) else None
+    except Exception:
+        return None
+
+
+def _verify_access_token_remote(token: str) -> dict[str, Any]:
     """Ask Supabase Auth to validate the bearer token and load its profile under RLS."""
     base_url, anon_key, _ = _settings()
     headers = {"apikey": anon_key, "Authorization": f"Bearer {token}"}
-    try:
-        response = httpx.get(
-            f"{base_url}/auth/v1/user",
+    claimed_id = _jwt_subject(token)
+
+    def get_user() -> httpx.Response:
+        return _http.get(f"{base_url}/auth/v1/user", headers=headers)
+
+    def get_profile(user_id: str) -> httpx.Response:
+        return _http.get(
+            f"{base_url}/rest/v1/user_profiles",
+            params={"select": "*", "id": f"eq.{user_id}"},
             headers=headers,
-            timeout=10.0,
         )
+
+    try:
+        if claimed_id:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                user_f = pool.submit(get_user)
+                profile_f = pool.submit(get_profile, claimed_id)
+                response = user_f.result()
+                profile_response = profile_f.result()
+        else:
+            response = get_user()
+            profile_response = None
     except httpx.HTTPError as exc:
         raise AppError(503, "AUTH_PROVIDER_UNAVAILABLE", "Supabase Auth could not be reached.") from exc
     if response.status_code != 200:
@@ -41,12 +101,8 @@ def verify_access_token(token: str) -> dict[str, Any]:
     if not isinstance(user_id, str):
         raise AppError(401, "UNAUTHORIZED", "Supabase returned an invalid user session.")
     try:
-        profile_response = httpx.get(
-            f"{base_url}/rest/v1/user_profiles",
-            params={"select": "*", "id": f"eq.{user_id}"},
-            headers=headers,
-            timeout=10.0,
-        )
+        if profile_response is None or user_id != claimed_id:
+            profile_response = get_profile(user_id)
     except httpx.HTTPError as exc:
         raise AppError(503, "PROFILE_PROVIDER_UNAVAILABLE", "Supabase profile storage could not be reached.") from exc
     if profile_response.status_code != 200:

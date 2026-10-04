@@ -23,8 +23,40 @@ from app.schemas.registration import KycImportRequest
 
 
 import uuid
+from datetime import datetime, timezone
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def in_memory_store(monkeypatch):
+    """Keep registrations out of the real database: tests must not leave rows behind."""
+    from app.api import routes_registration as rr
+
+    cases: dict = {}
+    rms: dict = {}
+
+    def create_case(profile, client_name, owner_user_id=None, product_config=None):
+        case_id = f"TEST{len(cases):04d}"
+        cases[case_id] = {"case_id": case_id, "client_name": client_name, "profile": profile}
+        return case_id
+
+    def register_rm(**kw):
+        rm_id = f"RMTEST{len(rms):04d}"
+        rms[rm_id] = {**kw, "rm_id": rm_id, "created_at": datetime.now(timezone.utc).isoformat()}
+        return rm_id
+
+    def find_rm_by_employee_id(institution, employee_id):
+        return next((r for r in rms.values()
+                     if r["institution"] == institution and r["employee_id"] == employee_id), None)
+
+    monkeypatch.setattr(rr, "init_db", lambda: None)
+    monkeypatch.setattr(rr, "create_case", create_case)
+    monkeypatch.setattr(rr, "delete_case", lambda case_id: cases.pop(case_id, None))
+    monkeypatch.setattr(rr, "register_rm", register_rm)
+    monkeypatch.setattr(rr, "find_rm_by_employee_id", find_rm_by_employee_id)
+    monkeypatch.setattr(rr, "get_rm", lambda rm_id: rms.get(rm_id))
+    monkeypatch.setattr(rr, "delete_rm_registration", lambda rm_id: rms.pop(rm_id, None))
 
 
 class TestClientRegistration:
@@ -118,16 +150,15 @@ class TestKYCImport:
         assert "groww" in provider_keys
         assert "cred" in provider_keys
 
-    def test_import_kyc_kite(self):
-        req = {"provider": "kite", "handle": "AB1234"}
-        res = client.post("/api/kyc/import", json=req)
-        assert res.status_code == 200
-        data = res.json()
-        assert data["provider"] == "kite"
-        assert data["provider_label"] == "Kite by Zerodha"
-        assert "legal_name" in data["identity"]
-        assert "liquid_net_worth" in data["financials"]
-        assert "risk_appetite" in data["fields_still_required"]
+    def test_providers_report_not_connected(self):
+        data = client.get("/api/kyc/providers").json()
+        assert all(p["connected"] is False for p in data["providers"])
+
+    def test_import_kyc_refused_without_connector(self):
+        # No identity is ever synthesised: without a live connector the import is refused.
+        res = client.post("/api/kyc/import", json={"provider": "kite", "handle": "AB1234"})
+        assert res.status_code == 503
+        assert res.json()["error"]["code"] == "PROVIDER_NOT_CONNECTED"
 
 
 class TestRMRegistration:

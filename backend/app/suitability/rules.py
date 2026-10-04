@@ -121,21 +121,22 @@ def rule_concentration(
     """R-CONC: Concentration check."""
     cfg_rules = get_suitability_rules()["rules"]["R-CONC"]
 
-    amount_pct = profile.amount_pct_of_assets  # fraction
+    amount_pct = profile.amount_pct_of_assets or 0.0  # fraction; amount is the INR principal
     existing_exp = profile.existing_exposure_underlying_pct / 100.0
-    existing_struct = profile.existing_structured_pct / 100.0
+    # Unknown existing structured share: measure this product on its own and say so.
+    existing_struct = None if profile.existing_structured_pct is None else profile.existing_structured_pct / 100.0
 
     # Post-trade underlying exposure
     post_trade_exp = existing_exp + amount_pct
     single_product_pct = amount_pct
-    structured_total = existing_struct + amount_pct
+    structured_total = (existing_struct or 0.0) + amount_pct
 
     facts = {
         "post_trade_underlying_exposure": round(post_trade_exp, 4),
         "single_product_pct": round(single_product_pct, 4),
-        "existing_structured_pct": round(existing_struct, 4),
+        "existing_structured_pct": None if existing_struct is None else round(existing_struct, 4),
         "structured_total": round(structured_total, 4),
-        "investment_amount": config.principal,  # type: ignore[attr-defined]
+        "investment_amount_inr": round(profile.investment_amount or 0.0, 2),
         "investable_assets": profile.investable_assets,
     }
 
@@ -245,7 +246,7 @@ def rule_fx(config: object, profile: ClientProfile) -> RuleResult:
     asset_currency = asset_info.get("currency", "INR")
     is_dcd = config.product_type == "DCD"  # type: ignore[attr-defined]
 
-    client_currency = "INR"  # simplified assumption: INR client
+    client_currency = "INR"  # client net worth and income are recorded in INR
     has_fx_risk = is_dcd or (asset_currency != client_currency)
 
     facts = {
@@ -464,7 +465,7 @@ def rule_kyc_completeness(profile: ClientProfile) -> RuleResult:
         "aml_threshold": aml_threshold,
     }
 
-    if profile.investment_amount >= aml_threshold and not has_sof:
+    if (profile.investment_amount or 0.0) >= aml_threshold and not has_sof:
         return _rule(
             "R-KYC", "kyc_aml", "AMBER", 0.4,
             "rkyc_source_of_funds_missing",

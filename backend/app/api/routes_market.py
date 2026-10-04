@@ -30,7 +30,7 @@ DISCLAIMER = (
 
 
 @router.get("/underlyings")
-async def list_underlyings() -> Dict[str, Any]:
+def list_underlyings() -> Dict[str, Any]:
     underlyings = get_underlyings()
     items = []
     for key, meta in underlyings.items():
@@ -42,6 +42,8 @@ async def list_underlyings() -> Dict[str, Any]:
             "type": meta["type"],
             "currency": meta["currency"],
             "sector": meta["sector"],
+            "base_currency": meta.get("base_currency"),
+            "alt_currency": meta.get("alt_currency"),
         }
         # Best-effort latest price
         try:
@@ -65,7 +67,7 @@ async def list_underlyings() -> Dict[str, Any]:
 
 
 @router.get("/market/history")
-async def market_history(
+def market_history(
     key: str = Query(..., description="Underlying key from /api/underlyings"),
     years: float = Query(default=10.0, ge=1, le=20),
 ) -> Dict[str, Any]:
@@ -103,7 +105,7 @@ async def market_history(
 
 
 @router.get("/product-defaults/{product_type}")
-async def product_defaults(product_type: str) -> Dict[str, Any]:
+def product_defaults(product_type: str) -> Dict[str, Any]:
     cfg = get_products_config()
     pt = product_type.upper()
     if pt not in cfg:

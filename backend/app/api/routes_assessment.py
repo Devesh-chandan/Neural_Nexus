@@ -36,7 +36,7 @@ class AssessRequest(BaseModel):
 
 
 @router.post("/assess")
-async def assess(req: AssessRequest, request: Request) -> Dict[str, Any]:
+def assess(req: AssessRequest, request: Request) -> Dict[str, Any]:
     case = get_case(req.client_id)
     if case is None:
         raise AppError(404, "CASE_NOT_FOUND", "Case not found.")

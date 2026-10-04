@@ -1,30 +1,43 @@
 """
 POST /api/cases  – create case from profile
 GET  /api/cases/{case_id}  – load profile
+PUT  /api/cases/{case_id}/profile  – update the client's answers
+PUT  /api/cases/{case_id}/product-config  – RM recommends an analysed product (RBAC-gated)
 GET  /api/runs/{run_id}  – full run
 GET  /api/runs/{run_id}/export  – JSON or HTML export
 """
 from __future__ import annotations
 
+import html
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.core.errors import AppError
+from app.core.rbac import (
+    PERM_FINALISE_CONFIGURATION,
+    permissions_for_tier,
+    rm_product_error,
+    tier_cannot_finalise_reason,
+)
+from app.schemas.client import ClientProfile
+from app.schemas.product import parse_product_dict
 from app.store.audit import get_audit_record
 from app.store.cases import (
     create_case,
     get_case,
     list_cases,
+    merge_profile_edit,
     normalize_profile,
     update_case_product_config,
     update_case_profile,
 )
 from app.store.db import init_db
+from app.store.rms import get_rm, record_finalisation
 from app.store.runs import load_run
 
 logger = logging.getLogger(__name__)
@@ -59,8 +72,23 @@ def _ensure_run_access(run: Dict[str, Any], user: Dict[str, Any]) -> None:
     _ensure_case_access(case, user)
 
 
+def _require_case(case_id: str, user: Dict[str, Any]) -> Dict[str, Any]:
+    row = get_case(case_id)
+    if row is None:
+        raise AppError(404, "CASE_NOT_FOUND", f"Case {case_id} not found.")
+    _ensure_case_access(row, user)
+    return row
+
+
+def _validated_profile(profile: Dict[str, Any]) -> ClientProfile:
+    try:
+        return ClientProfile(**profile)
+    except ValidationError as exc:
+        raise AppError(422, "VALIDATION_ERROR", f"Invalid profile: {exc}")
+
+
 @router.get("/cases")
-async def list_cases_route(request: Request) -> Dict[str, Any]:
+def list_cases_route(request: Request) -> Dict[str, Any]:
     init_db()
     user = request.state.user
     cases = (
@@ -72,25 +100,21 @@ async def list_cases_route(request: Request) -> Dict[str, Any]:
 
 
 @router.post("/cases")
-async def create_case_route(req: CaseCreateRequest, request: Request) -> Dict[str, Any]:
+def create_case_route(req: CaseCreateRequest, request: Request) -> Dict[str, Any]:
     init_db()
-    profile = req.profile
-    client_name = profile.get("client_name", "Unknown")
+    profile = _validated_profile(req.profile)
     user = request.state.user
     case_id = create_case(
-        profile,
-        client_name,
+        profile.stored_dict(),
+        profile.client_name,
         owner_user_id=user.get("id") if user.get("user_type") == "client" else None,
     )
-    return {"case_id": case_id, "client_name": client_name}
+    return {"case_id": case_id, "client_name": profile.client_name}
 
 
 @router.get("/cases/{case_id}")
-async def get_case_route(case_id: str, request: Request) -> Dict[str, Any]:
-    row = get_case(case_id)
-    if row is None:
-        raise AppError(404, "CASE_NOT_FOUND", f"Case {case_id} not found.")
-    _ensure_case_access(row, request.state.user)
+def get_case_route(case_id: str, request: Request) -> Dict[str, Any]:
+    row = _require_case(case_id, request.state.user)
     return {
         "case_id": row["case_id"],
         "client_name": row["client_name"],
@@ -103,34 +127,83 @@ async def get_case_route(case_id: str, request: Request) -> Dict[str, Any]:
 
 class ProductConfigUpdate(BaseModel):
     product_config: Dict[str, Any]
+    # The analysis run these exact terms were evaluated in, for this case.
+    run_id: str
 
 
 @router.put("/cases/{case_id}/product-config")
-async def update_product_config_route(
+def update_product_config_route(
     case_id: str, req: ProductConfigUpdate, request: Request
 ) -> Dict[str, Any]:
-    row = get_case(case_id)
-    if row is None:
-        raise AppError(404, "CASE_NOT_FOUND", f"Case {case_id} not found.")
-    _ensure_case_access(row, request.state.user)
-    update_case_product_config(case_id, req.product_config)
-    return {"case_id": case_id, "product_config": req.product_config}
+    """
+    Recommend a product to a client. Only an RM may do this, only for a product type
+    their jurisdiction and authorisation allow, only after the terms were analysed
+    for this client, and only with finalisation clearance. A denied attempt by a
+    tier without clearance is recorded so the escalation is auditable.
+    """
+    user = request.state.user
+    if user.get("user_type") != "rm":
+        raise AppError(403, "FORBIDDEN", "Only a relationship manager can recommend a product.")
+    _require_case(case_id, user)
+
+    rm = get_rm(user.get("rm_id") or "")
+    if rm is None:
+        raise AppError(403, "RM_NOT_REGISTERED", "Your account has no registered RM record.")
+
+    try:
+        config = parse_product_dict(req.product_config)
+    except (ValueError, ValidationError) as exc:
+        raise AppError(422, "VALIDATION_ERROR", str(exc))
+
+    product_error = rm_product_error(rm, config.product_type)
+    if product_error:
+        raise AppError(403, "PRODUCT_NOT_AUTHORISED", product_error)
+
+    run = load_run(req.run_id)
+    if run is None or run.get("case_id") != case_id:
+        raise AppError(422, "RUN_MISMATCH", "Analyse these terms for this client before recommending them.")
+    try:
+        analysed = parse_product_dict(run["product_json"])
+    except (ValueError, ValidationError):
+        analysed = None
+    if analysed is None or analysed.model_dump() != config.model_dump():
+        raise AppError(422, "RUN_MISMATCH", "The terms changed since the last analysis; re-run it first.")
+
+    tier = rm["access_tier"]
+    if PERM_FINALISE_CONFIGURATION not in permissions_for_tier(tier):
+        reason = tier_cannot_finalise_reason(tier) or "Your access tier cannot finalise a configuration."
+        record_finalisation(req.run_id, rm["rm_id"], False, tier, reason)
+        raise AppError(403, "FINALISE_NOT_PERMITTED", reason)
+
+    stored = config.model_dump(mode="json")
+    update_case_product_config(case_id, stored)
+    finalised_at = record_finalisation(req.run_id, rm["rm_id"], True, tier, None)
+    return {
+        "case_id": case_id,
+        "product_config": stored,
+        "run_id": req.run_id,
+        "finalised_by": rm["rm_id"],
+        "finalised_at": finalised_at,
+    }
 
 
 @router.put("/cases/{case_id}/profile")
-async def update_profile_route(
+def update_profile_route(
     case_id: str, req: CaseCreateRequest, request: Request
 ) -> Dict[str, Any]:
-    row = get_case(case_id)
-    if row is None:
-        raise AppError(404, "CASE_NOT_FOUND", f"Case {case_id} not found.")
-    _ensure_case_access(row, request.state.user)
-    update_case_profile(case_id, req.profile)
-    return {"case_id": case_id, "client_name": req.profile.get("client_name"), "profile": req.profile}
+    row = _require_case(case_id, request.state.user)
+    edited = _validated_profile(req.profile).stored_dict()
+    merged = merge_profile_edit(json.loads(row["profile_json"]), edited)
+    update_case_profile(case_id, merged, edited["client_name"])
+    return {
+        "case_id": case_id,
+        "client_name": edited["client_name"],
+        "profile": normalize_profile(merged, edited["client_name"]),
+    }
 
 
 @router.get("/runs/{run_id}")
-async def get_run(run_id: str, request: Request) -> Dict[str, Any]:
+def get_run(run_id: str, request: Request) -> Dict[str, Any]:
     run = load_run(run_id)
     if run is None:
         raise AppError(404, "RUN_NOT_FOUND", f"Run {run_id} not found.")
@@ -151,17 +224,17 @@ async def get_run(run_id: str, request: Request) -> Dict[str, Any]:
 
 
 @router.get("/runs/{run_id}/export")
-async def export_run(
+def export_run(
     run_id: str,
     request: Request,
-    format: str = Query(default="json", regex="^(json|html)$"),
+    format: str = Query(default="json", pattern="^(json|html)$"),
 ) -> Any:
     run = load_run(run_id)
     if run is None:
         raise AppError(404, "RUN_NOT_FOUND", f"Run {run_id} not found.")
     _ensure_run_access(run, request.state.user)
 
-    audit = get_audit_record(run_id)
+    audit = get_audit_record(run_id) if request.state.user.get("user_type") == "rm" else None
 
     if format == "json":
         return {
@@ -175,17 +248,19 @@ async def export_run(
         }
 
     # HTML report
+    esc = html.escape
     suitability = run.get("suitability_json") or {}
-    verdict = suitability.get("verdict", "N/A")
+    verdict = str(suitability.get("verdict", "N/A"))
     score = suitability.get("score", "N/A")
     explanation = run.get("explanation_json") or {}
-    client_text = explanation.get("client_text", "No explanation available.")
+    client_text = explanation.get("client_text") or "No explanation was generated for this run."
     product = run.get("product_json", {})
-    record_hash = audit["record_hash"] if audit else "N/A"
+    record_hash = audit["record_hash"] if audit else "Not available"
+    rows = "".join(f"<tr><td>{esc(str(k))}</td><td>{esc(str(v))}</td></tr>" for k, v in product.items())
 
-    html = f"""<!DOCTYPE html>
+    page = f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Analysis Report – {run_id}</title>
+<head><meta charset="UTF-8"><title>Analysis Report – {esc(run_id)}</title>
 <style>
   body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }}
   h1 {{ color: #1e40af; }} h2 {{ color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }}
@@ -200,24 +275,22 @@ async def export_run(
 </head>
 <body>
 <h1>Structured Product Analysis Report</h1>
-<p><strong>Run ID:</strong> {run_id}</p>
+<p><strong>Run ID:</strong> {esc(run_id)} · <strong>Data:</strong> {esc(str(run.get("data_source")))} as of {esc(str(run.get("as_of")))}</p>
 
 <h2>Product</h2>
-<table>
-{"".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in product.items())}
-</table>
+<table>{rows}</table>
 
 <h2>Suitability</h2>
-<p>Verdict: <span class="verdict-{verdict}">{verdict}</span> | Score: {score}/100</p>
+<p>Verdict: <span class="verdict-{esc(verdict)}">{esc(verdict)}</span> | Score: {esc(str(score))}/100</p>
 
 <h2>Explanation</h2>
-<div style="white-space: pre-wrap; font-size: 14px;">{client_text}</div>
+<div style="white-space: pre-wrap; font-size: 14px;">{esc(client_text)}</div>
 
 <h2>Audit</h2>
-<p class="hash">Record hash: {record_hash}</p>
+<p class="hash">Record hash: {esc(record_hash)}</p>
 <p style="font-size: 12px;">This hash chain is tamper-evident in the prototype, not tamper-proof.</p>
 
-<div class="disclaimer">{DISCLAIMER}</div>
+<div class="disclaimer">{esc(DISCLAIMER)}</div>
 </body></html>"""
 
-    return HTMLResponse(content=html, media_type="text/html")
+    return HTMLResponse(content=page, media_type="text/html")

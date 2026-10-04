@@ -1,14 +1,14 @@
 """
 POST /api/explain – generate explanation for a stored run.
-Phase 5 stub – wired up in Phase 6.
 """
 from __future__ import annotations
 
 from typing import Any, Dict
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from app.api.routes_cases import _ensure_run_access
 from app.core.errors import AppError
 from app.explain.payload import build_payload
 from app.explain.service import generate_explanation
@@ -23,10 +23,11 @@ class ExplainRequest(BaseModel):
 
 
 @router.post("/explain")
-async def explain_run(req: ExplainRequest) -> Dict[str, Any]:
+def explain_run(req: ExplainRequest, request: Request) -> Dict[str, Any]:
     run = load_run(req.run_id)
     if run is None:
         raise AppError(404, "RUN_NOT_FOUND", f"Run {req.run_id} not found.")
+    _ensure_run_access(run, request.state.user)
 
     # Reconstruct minimal facts from stored run
     facts: Dict[str, Any] = {

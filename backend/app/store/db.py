@@ -4,6 +4,7 @@ PostgreSQL database initialisation and connection helper.
 from __future__ import annotations
 
 import psycopg2
+from psycopg2.pool import ThreadedConnectionPool
 from psycopg2.extras import RealDictCursor
 
 from app.core.config import get_settings
@@ -15,7 +16,8 @@ CREATE TABLE IF NOT EXISTS cases (
     profile_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     latest_recommendation_id TEXT,
-    owner_user_id TEXT
+    owner_user_id TEXT,
+    product_config_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS relationship_managers (
@@ -31,20 +33,8 @@ CREATE TABLE IF NOT EXISTS relationship_managers (
     department TEXT,
     access_tier TEXT NOT NULL,
     authorised_product_types_json TEXT NOT NULL,
-    password_hash TEXT,
     created_at TEXT NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS client_accounts (
-    account_id TEXT PRIMARY KEY,
-    case_id TEXT NOT NULL,
-    client_name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (case_id) REFERENCES cases (case_id)
-);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_client_accounts_email ON client_accounts (email);
 
 CREATE INDEX IF NOT EXISTS idx_rm_tenant
     ON relationship_managers (institution, branch_code);
@@ -98,9 +88,25 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 """
 
+_pool: ThreadedConnectionPool | None = None
+
+
+def _get_pool(dsn: str) -> ThreadedConnectionPool:
+    global _pool
+    if _pool is None:
+        _pool = ThreadedConnectionPool(1, 20, dsn, cursor_factory=RealDictCursor)
+    return _pool
+
+
 class PostgresConnection:
+    """Borrows a pooled connection; close() returns it (a new TLS+auth handshake costs ~0.6s)."""
+
     def __init__(self, dsn):
-        self._conn = psycopg2.connect(dsn, cursor_factory=RealDictCursor)
+        self._pool = _get_pool(dsn)
+        self._conn = self._pool.getconn()
+        if self._conn.closed:
+            self._pool.putconn(self._conn, close=True)
+            self._conn = self._pool.getconn()
 
     def execute(self, sql, params=None):
         cur = self._conn.cursor()
@@ -111,7 +117,22 @@ class PostgresConnection:
         self._conn.commit()
 
     def close(self):
-        self._conn.close()
+        if self._conn is None:
+            return
+        conn, self._conn = self._conn, None
+        try:
+            if not conn.closed:
+                conn.rollback()  # never hand back a connection with an open transaction
+        except Exception:
+            self._pool.putconn(conn, close=True)
+            return
+        self._pool.putconn(conn)
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def __enter__(self):
         return self
@@ -130,29 +151,34 @@ def get_connection() -> PostgresConnection:
     return PostgresConnection(settings.database_url)
 
 
+_db_initialised = False
+
+
 def init_db() -> None:
+    # Schema + migrations only need to run once per process; callers invoke this per request.
+    global _db_initialised
+    if _db_initialised:
+        return
+    _init_db()
+    _db_initialised = True
+
+
+_MIGRATIONS = (
+    "ALTER TABLE cases ADD COLUMN IF NOT EXISTS owner_user_id TEXT",
+    "ALTER TABLE cases ADD COLUMN IF NOT EXISTS product_config_json TEXT",
+    # Earlier seeds copied each client's login credentials into the case record;
+    # authentication lives in Supabase, so strip them.
+    """UPDATE cases SET profile_json = (profile_json::jsonb - 'credentials')::text
+       WHERE profile_json::jsonb ? 'credentials'""",
+)
+
+
+def _init_db() -> None:
     conn = get_connection()
-    with conn:
-        conn.execute(_SCHEMA)
-    # Commit table creations before attempting migrations
-    conn.commit()
-    
-    with conn:
-        try:
-            conn.execute("ALTER TABLE relationship_managers ADD COLUMN password_hash TEXT")
-        except Exception:
-            conn._conn.rollback()
-            
-    with conn:
-        try:
-            conn.execute("ALTER TABLE cases ADD COLUMN owner_user_id TEXT")
-        except Exception:
-            conn._conn.rollback()
-
-    with conn:
-        try:
-            conn.execute("ALTER TABLE cases ADD COLUMN product_config_json TEXT")
-        except Exception:
-            conn._conn.rollback()
-
-    conn.close()
+    try:
+        with conn:
+            conn.execute(_SCHEMA)
+            for statement in _MIGRATIONS:
+                conn.execute(statement)
+    finally:
+        conn.close()

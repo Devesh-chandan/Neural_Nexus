@@ -18,7 +18,7 @@ from app.simulation.bridge import Settings, run_simulation
 
 @pytest.fixture
 def synthetic_price_dir(tmp_path):
-    """A data_dir with data/prices/NIFTY.csv so sim_engine never hits the network."""
+    """A data_dir with data/prices/NIFTY50.csv so sim_engine never hits the network."""
     prices_dir = tmp_path / "prices"
     prices_dir.mkdir()
     dates = pd.bdate_range("2015-01-01", periods=3000)
@@ -26,7 +26,7 @@ def synthetic_price_dir(tmp_path):
     rets = rng.normal(0.0003, 0.012, len(dates))
     closes = 100 * np.cumprod(1 + rets)
     pd.DataFrame({"Date": dates.strftime("%Y-%m-%d"), "Close": closes}).to_csv(
-        prices_dir / "NIFTY.csv", index=False
+        prices_dir / "NIFTY50.csv", index=False
     )
     return str(tmp_path)
 
@@ -67,7 +67,7 @@ class TestAdapter:
 class TestRunSimulation:
     def test_eln_returns_20_dated_scenarios(self, synthetic_price_dir):
         config = parse_product_dict({
-            "product_type": "ELN", "underlying": "NIFTY", "tenor_months": 12,
+            "product_type": "ELN", "underlying": "NIFTY50", "tenor_months": 12,
             "principal": 1_000_000, "barrier_pct": 0.7, "coupon_pa": 0.1,
         })
         result = run_simulation(

@@ -5,6 +5,7 @@ Deterministic: no LLM. Output schema: SuitabilityResult.
 """
 from __future__ import annotations
 
+from app.market.fx import principal_in_inr
 from app.schemas.analysis import MetricsBundle
 from app.schemas.client import ClientProfile
 from app.schemas.suitability import SuitabilityResult
@@ -21,7 +22,11 @@ def evaluate_suitability(
     """
     Main entry point for the suitability engine.
     Returns a fully populated SuitabilityResult. Pure Python, no LLM.
+
+    The amount being assessed is the product's principal, converted to INR so it
+    is comparable with the client's INR net worth and income.
     """
+    profile = profile.model_copy(update={"investment_amount": principal_in_inr(config)})
     tier = compute_tier(metrics)
     rules = evaluate_all_rules(config, profile, metrics, tier)
 

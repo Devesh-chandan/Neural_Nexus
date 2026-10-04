@@ -53,17 +53,48 @@ ProductConfig = Annotated[
 ]
 
 
+def _align_with_underlying(data: dict, pt: str) -> dict:
+    """Denominate the product in its underlying's currency (config/underlyings.yaml).
+
+    An ELN or CPN on the S&P 500 is a USD note; a DCD on USD/INR is a USD deposit that
+    may be repaid in INR. Taking these from config keeps the payoff engine, the
+    historical replay and the suitability checks reading the same currencies.
+    """
+    from app.core.config import get_underlyings
+
+    key = str(data.get("underlying", "")).strip().upper()
+    meta = get_underlyings().get(key)
+    if meta is None:
+        raise ValueError(f"Unknown underlying: {data.get('underlying')!r}")
+    aligned = {**data, "underlying": key}
+    if pt == "DCD":
+        if meta.get("asset_class") != "fx":
+            raise ValueError(f"A DCD needs an FX underlying; {key} is {meta.get('asset_class')}.")
+        aligned.update(
+            base_currency=meta["base_currency"],
+            alt_currency=meta["alt_currency"],
+            currency=meta["base_currency"],
+        )
+    else:
+        if meta.get("asset_class") == "fx":
+            raise ValueError(f"An {pt} needs an equity or index underlying; {key} is an FX pair.")
+        aligned["currency"] = meta["currency"]
+    return aligned
+
+
 def parse_product_dict(data: dict) -> Union[ELNConfig, CPNConfig, DCDConfig]:
     """Dispatch a raw {product_type, ...} dict to the matching config model.
 
-    Raises ValueError (via pydantic) on an unknown/missing product_type or invalid fields;
-    callers are expected to wrap this in their own error handling.
+    Raises ValueError (via pydantic) on an unknown/missing product_type, an unknown
+    underlying or invalid fields; callers are expected to wrap this in their own
+    error handling.
     """
     pt = str(data.get("product_type", "")).upper()
+    if pt not in ("ELN", "CPN", "DCD"):
+        raise ValueError(f"Unknown product_type: {pt}")
+    data = _align_with_underlying(data, pt)
     if pt == "ELN":
         return ELNConfig(**data)
     if pt == "CPN":
         return CPNConfig(**data)
-    if pt == "DCD":
-        return DCDConfig(**data)
-    raise ValueError(f"Unknown product_type: {pt}")
+    return DCDConfig(**data)

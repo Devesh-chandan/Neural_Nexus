@@ -15,12 +15,12 @@ router = APIRouter(tags=["audit"])
 
 
 @router.get("/audit/verify-chain")
-async def verify_chain_route() -> Dict[str, Any]:
+def verify_chain_route() -> Dict[str, Any]:
     return verify_chain()
 
 
 @router.get("/audit/{run_id}")
-async def get_audit(run_id: str, request: Request) -> Dict[str, Any]:
+def get_audit(run_id: str, request: Request) -> Dict[str, Any]:
     if request.state.user.get("user_type") != "rm":
         raise AppError(403, "FORBIDDEN", "Audit records are restricted to relationship managers.")
     record = get_audit_record(run_id)

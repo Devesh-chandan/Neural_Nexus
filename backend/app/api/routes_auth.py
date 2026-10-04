@@ -9,7 +9,7 @@ router = APIRouter(tags=["auth"])
 
 
 @router.get("/auth/me")
-async def get_me(request: Request) -> Dict[str, Any]:
+def get_me(request: Request) -> Dict[str, Any]:
     """Return the Supabase-verified caller profile from the authentication middleware."""
     profile = dict(request.state.user)
     user_type = profile.pop("user_type")

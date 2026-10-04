@@ -83,6 +83,17 @@ regulatory_numbers:
     min_length: 6
     pattern: "^[0-9]{6,10}$"
     example: "401234"
+  # The two jurisdictions below come from relationship_managers_india.json.
+  IN-ONSHORE:
+    label: "AMFI EUIN / SEBI Registration Number"
+    min_length: 7
+    pattern: "^(E[0-9]{6}|IN[A-Z0-9]{9,12})$"
+    example: "E991459"
+  IN-GIFT-IFSC:
+    label: "IFSCA Registration Number"
+    min_length: 6
+    pattern: "^[A-Z0-9/-]{6,24}$"
+    example: "IFSCA-SYN-000417"
 
 # ─── Jurisdictions ───────────────────────────────────────────────────────────
 jurisdictions:
@@ -118,6 +129,14 @@ jurisdictions:
     label: "Australia"
     regulator: "ASIC"
     currency: "AUD"
+  IN-ONSHORE:
+    label: "India (onshore)"
+    regulator: "SEBI / RBI / AMFI"
+    currency: "INR"
+  IN-GIFT-IFSC:
+    label: "GIFT City IFSC"
+    regulator: "IFSCA"
+    currency: "USD"
 
 # ─── Jurisdiction × product-type gating ──────────────────────────────────────
 # An RM can only configure structures that are legally sellable in their
@@ -131,6 +150,10 @@ jurisdiction_product_matrix:
   EU: ["CPN"]
   HK: ["CPN"]
   AU: ["CPN"]
+  # From product_rules_demo in relationship_managers_india.json: only ALLOWED
+  # products are permitted (onshore DCD is RESTRICTED under RBI rules).
+  IN-ONSHORE: ["ELN", "CPN", "DCD"]
+  IN-GIFT-IFSC: ["ELN", "CPN", "DCD"]
 
 # ─── Access tiers (principle of least privilege) ────────────────────────────
 access_tiers:
