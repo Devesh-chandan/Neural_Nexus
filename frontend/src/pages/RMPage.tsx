@@ -49,7 +49,6 @@ import {
   VerdictBadge,
   Disclaimer,
   Spinner,
-  RuleDot,
   ProductPill,
   ScoreRing,
   StatBox,
@@ -954,26 +953,6 @@ const RMPage: React.FC = () => {
                       </section>
                     </div>
 
-                    {/* Suitability Rule Indicators */}
-                    {result.suitability && (
-                      <div className="rationale-checks">
-                        <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
-                          <span className="rationale-eyebrow">Key checks</span>
-                          <RuleDot status={result.suitability.summary_flags.appetite} label="Risk Appetite" />
-                          <RuleDot status={result.suitability.summary_flags.horizon} label="Horizon" />
-                          <RuleDot status={result.suitability.summary_flags.affordability} label="Loss Capacity" />
-                        </div>
-
-                        <button
-                          className="btn btn-outline-dark btn-sm"
-                          style={{ height: 32, fontSize: 12, padding: '0 12px' }}
-                          onClick={handleFixIt}
-                          disabled={fixLoading}
-                        >
-                          {fixLoading ? <Spinner size={10} /> : <Wrench size={11} />} Fix-It Suggestions
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -1244,6 +1223,19 @@ const RMPage: React.FC = () => {
             {/* Modal Body: FULL SCREEN REASONING VIEW */}
             {fullScreenView === 'reasoning' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {result?.suitability && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      className="btn btn-outline-dark btn-sm"
+                      style={{ height: 32, fontSize: 12, padding: '0 12px' }}
+                      onClick={handleFixIt}
+                      disabled={fixLoading}
+                    >
+                      {fixLoading ? <Spinner size={10} /> : <Wrench size={11} />} Fix-It Suggestions
+                    </button>
+                  </div>
+                )}
+
                 {result?.explanation && (
                   <div className="grid-2" style={{ gap: 20 }}>
                     <div className="card" style={{ padding: 24, background: 'var(--surface-deep)', border: '1px solid var(--hairline-dark)' }}>

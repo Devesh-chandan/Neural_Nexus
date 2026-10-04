@@ -69,12 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       void applySession(data.session?.access_token ?? null);
     });
     const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        void applySession(null);
-      } else {
-        setToken(session.access_token);
-        setLoading(false);
-      }
+      void applySession(session?.access_token ?? null);
     });
     return () => {
       mounted = false;
