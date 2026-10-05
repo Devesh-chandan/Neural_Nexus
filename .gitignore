@@ -37,3 +37,10 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Local SQLite databases
+*.db
+backend/data/sim/prices/
+backend/data/sim/underlyings.json
+backend/data/suitability_outputs/
+node_modules/

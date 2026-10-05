@@ -1,0 +1,36 @@
+# docker compose --env-file frontend/.env.local up --build
+#   backend/.env  -> backend runtime settings
+#   --env-file    -> VITE_SUPABASE_* build args for the frontend (any file defining them works)
+# Always use --build after code changes; plain `up` reuses the previously built images.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: backend/.env
+    environment:
+      # nginx (frontend) sits in front of the API and forwards the real client IP.
+      TRUST_PROXY_HEADERS: "true"
+      CORS_ORIGINS: "http://localhost:8080"
+    ports:
+      # Also published so a local `npm run dev` (Vite proxies /api to localhost:8000) can use this backend.
+      - "8000:8000"
+    volumes:
+      - backend-data:/srv/backend/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-data:
