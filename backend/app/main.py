@@ -4,6 +4,7 @@ FastAPI application entry point.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from fastapi import FastAPI
@@ -21,6 +22,7 @@ from app.core.errors import (
     validation_exception_handler,
 )
 from app.core.logging import setup_logging
+from app.core.ratelimit import RateLimiter, client_ip, default_rules
 from app.core.supabase import verify_access_token
 from app.store.db import init_db
 
@@ -28,8 +30,12 @@ setup_logging()
 
 settings = get_settings()
 
-# Ensure DB tables exist on startup
-init_db()
+# Ensure DB tables exist on startup. Routes also call init_db() lazily, so a missing DATABASE_URL
+# (e.g. CI running the offline tests) only disables the database-backed routes.
+if settings.database_url:
+    init_db()
+else:
+    logging.getLogger(__name__).warning("DATABASE_URL is not set; database-backed routes will fail.")
 
 app = FastAPI(
     title="Neural Nexus – Suitability-Aware Payoff Simulator",
@@ -104,6 +110,31 @@ async def authenticate_api_requests(request: Request, call_next: Any) -> Respons
     return await call_next(request)
 
 
+# Rate limiting is registered after authentication so it wraps it (runs first), and before CORS
+# so 429 responses still carry CORS headers.
+_limiter = RateLimiter(default_rules(settings.rate_limit_scale))
+
+
+@app.middleware("http")
+async def rate_limit_api_requests(request: Request, call_next: Any) -> Response:
+    """Reject floods before they reach authentication, market-data downloads or the LLM."""
+    path = request.url.path
+    if settings.rate_limit_enabled and path.startswith("/api/") and request.method.upper() != "OPTIONS":
+        authorization = request.headers.get("authorization", "")
+        token = authorization.removeprefix("Bearer ").strip() if authorization.startswith("Bearer ") else None
+        verdict = _limiter.check(request.method.upper(), path, client_ip(request, settings.trust_proxy_headers), token)
+        if verdict is not None:
+            rule, wait = verdict
+            retry_after = max(1, int(wait) + 1)
+            return JSONResponse(
+                status_code=429,
+                headers={"Retry-After": str(retry_after)},
+                content={"error": {"code": "RATE_LIMITED",
+                                   "message": f"Too many requests ({rule}). Retry in {retry_after}s."}},
+            )
+    return await call_next(request)
+
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -127,8 +158,8 @@ async def health() -> dict:
 # ── Route registration ────────────────────────────────────────────────────────
 from app.api import routes_market        # Phase 1
 from app.api import routes_analyze       # Phase 3/4
-from app.api import routes_simulation    # module2_simulation_engine: real historical replay
-from app.api import routes_assessment    # module3_suitability_engine: suitability on module2 output
+from app.api import routes_simulation    # real historical replay
+from app.api import routes_assessment    # deterministic suitability on the replay output
 from app.api import routes_cases         # Phase 7
 from app.api import routes_audit         # Phase 7
 from app.api import routes_explain       # Phase 6

@@ -6,23 +6,25 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Tuple
 
 import pandas as pd
 
 from app.core.config import get_settings, get_underlyings
-from app.market.cache import load_cache, save_cache
-from app.market.provider import download_history
-from app.market.seed import load_seed
+from app.market.sources import load_cache, save_cache
+from app.market.sources import download_history
+from app.market.sources import load_seed
+from app.simulation.sim_engine.market_data import clean_prices
 
 logger = logging.getLogger(__name__)
 
-# In-memory memo: key → (df, source, as_of)
-_MEMO: Dict[str, Tuple[pd.DataFrame, str, str]] = {}
+# In-memory memo: key → (df, source, as_of, stored_at). Entries expire with the disk-cache TTL so a
+# long-running server does not serve prices from days ago.
+_MEMO: Dict[str, Tuple[pd.DataFrame, str, str, float]] = {}
 
 MIN_HISTORY_YEARS = 2
-MAX_GAP_DAYS = 3  # forward-fill at most 3-day gaps
 
 
 def _snapshot_id(key: str, df: pd.DataFrame) -> str:
@@ -34,31 +36,28 @@ def _snapshot_id(key: str, df: pd.DataFrame) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _clean(df: pd.DataFrame) -> pd.DataFrame:
-    """Drop NaN closes; forward-fill gaps ≤ MAX_GAP_DAYS; raise if still NaN."""
-    df = df.copy()
-    df["close"] = df["close"].astype(float)
-    # Drop rows that are explicitly NaN
-    df.dropna(subset=["close"], inplace=True)
-    if df.empty:
-        raise ValueError("All rows are NaN after dropping.")
+def _clean(df: pd.DataFrame, asset_class: str = "equity") -> pd.DataFrame:
+    """Shared cleaning rules (same as the replay engine): drop blank/zero/duplicate rows and one-day
+    spikes that fully reverse. Real trading days only: missing days are NOT forward-filled, because
+    invented flat days would distort barrier checks and volatility."""
+    clean, removed = clean_prices(df["close"], asset_class)
+    if clean.empty:
+        raise ValueError("No usable prices after cleaning.")
+    if removed:
+        logger.warning("Removed %d bad price rows (blank, zero or one-day spikes)", removed)
+    out = clean.to_frame("close")
+    out.index.name = "date"
+    return out
 
-    # Reindex to business-day calendar and forward-fill small gaps
-    bday_range = pd.bdate_range(df.index[0], df.index[-1])
-    df = df.reindex(bday_range)
-    # Mark where gaps are too large (>MAX_GAP_DAYS consecutive NaN)
-    mask = df["close"].isna()
-    # Count consecutive NaN runs
-    cumsum = mask.cumsum()
-    run_len = cumsum - cumsum.where(~mask).ffill().fillna(0)
-    too_large = run_len > MAX_GAP_DAYS
-    if too_large.any():
-        n = int(too_large.sum())
-        logger.warning("Dropping %d rows with large gaps (>%d days)", n, MAX_GAP_DAYS)
-    df = df[~too_large]
-    df["close"] = df["close"].ffill()
-    df.dropna(subset=["close"], inplace=True)
-    df.index.name = "date"
+
+def _slice(df: pd.DataFrame, start: Optional[str], end: Optional[str]) -> pd.DataFrame:
+    """Restrict to [start, end]; raises ValueError if nothing remains."""
+    if start:
+        df = df[df.index >= pd.Timestamp(start)]
+    if end:
+        df = df[df.index <= pd.Timestamp(end)]
+    if df.empty:
+        raise ValueError("No data in requested date range.")
     return df
 
 
@@ -76,9 +75,13 @@ def get_history(
     """
     global _MEMO
 
+    entry = _MEMO.get(key)
+    if entry is not None and time.monotonic() - entry[3] > get_settings().cache_ttl_seconds:
+        _MEMO.pop(key, None)
     if not force_refresh and key in _MEMO:
-        df, source, as_of = _MEMO[key]
-        return df, source, as_of, _snapshot_id(key, df)
+        full, source, _, stored_at = _MEMO[key]
+        df = _slice(full, start, end)
+        return df, source, str(df.index[-1].date()), _snapshot_id(key, df)
 
     underlyings = get_underlyings()
     if key not in underlyings:
@@ -86,9 +89,9 @@ def get_history(
 
     ticker = underlyings[key]["ticker"]
     default_start = start or (
-        datetime.utcnow() - timedelta(days=365 * 20)
+        datetime.now(timezone.utc) - timedelta(days=365 * 20)
     ).strftime("%Y-%m-%d")
-    end_str = end or datetime.utcnow().strftime("%Y-%m-%d")
+    end_str = end or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     df: Optional[pd.DataFrame] = None
     source = "live"
@@ -118,16 +121,12 @@ def get_history(
     if df is None:
         raise ValueError(f"No market data available for {key} (live, cache, and seed all failed).")
 
-    df = _clean(df)
+    df = _clean(df, "fx" if underlyings[key].get("asset_class") == "fx" else "equity")
 
-    # Filter to requested date range
-    if start:
-        df = df[df.index >= pd.Timestamp(start)]
-    if end:
-        df = df[df.index <= pd.Timestamp(end)]
-
-    if df.empty:
-        raise ValueError(f"No data in requested date range for {key}.")
+    # Memoise the FULL cleaned history; a request-specific date window must never be
+    # what later callers (analysis, FX conversion) read back from the memo.
+    full = df
+    df = _slice(full, start, end)
 
     years_available = (df.index[-1] - df.index[0]).days / 365.25
     if years_available < MIN_HISTORY_YEARS:
@@ -138,7 +137,7 @@ def get_history(
 
     as_of = str(df.index[-1].date())
     snap = _snapshot_id(key, df)
-    _MEMO[key] = (df, source, as_of)
+    _MEMO[key] = (full, source, str(full.index[-1].date()), time.monotonic())
     return df, source, as_of, snap
 
 

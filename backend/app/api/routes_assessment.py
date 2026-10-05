@@ -1,8 +1,8 @@
 """
-POST /api/assess – Module 3 suitability on top of Module 2's historical replay.
+POST /api/assess – deterministic suitability rules on top of the historical replay.
 
-Runs the product through module2_simulation_engine, then module3_suitability_engine's
-deterministic rules against the client's case record, explains the result in plain language
+Runs the product through the historical-replay engine (app.simulation), then the
+deterministic rules (app.assessment.rules_engine) against the client's case record, explains the result in plain language
 for the client and the RM (Groq LLM, validated, with a template fallback), and appends it all
 to the audit hash chain.
 """
@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from app.api.routes_cases import _ensure_case_access
+from app.assessment.redact import redact_explanation
 from app.assessment.service import assess_case
 from app.core.errors import AppError
 from app.simulation.service import HistoryUntil
@@ -50,14 +51,14 @@ def assess(req: AssessRequest, request: Request) -> Dict[str, Any]:
     append_audit(
         run_id=assessment["assessment_id"],
         payload={
-            "kind": "module3_assessment",
+            "kind": "suitability_assessment",
             "assessment": assessment,
             "data_gaps": result["data_gaps"],
             "explanation": explanation,
             "assessed_by": request.state.user.get("id"),
         },
         verdict=assessment["overall_status"],
-        data_source=str(market_data.get("source") or "module2_simulation_engine"),
+        data_source=str(market_data.get("source") or "historical_replay"),
         snapshot_id=str(market_data.get("fingerprint") or assessment["simulation_run_id"]),
         model=explanation["model"] if explanation else None,
         prompt_version=explanation["prompt_version"] if explanation else "none",
@@ -74,7 +75,7 @@ def _client_view(response: Dict[str, Any]) -> Dict[str, Any]:
     flags = response["assessment"]["compliance_flags"]
     assessment = {k: v for k, v in response["assessment"].items() if k != "compliance_flags"}
     assessment["additional_checks_required"] = any(f["status"] != "PASS" for f in flags.values())
-    explanation = response["explanation"]
-    if explanation is not None:
-        explanation = {k: v for k, v in explanation.items() if k != "rm"}
+    # KYC data-completeness notes are compliance detail, not for the client.
+    assessment["additional_checks"] = {k: v for k, v in (assessment.get("additional_checks") or {}).items() if k != "kyc_data"}
+    explanation = redact_explanation(response["explanation"])
     return {**response, "assessment": assessment, "explanation": explanation, "data_gaps": []}

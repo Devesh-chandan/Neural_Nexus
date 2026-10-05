@@ -7,9 +7,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from app.payoff.eln import ELNPayoff
-from app.payoff.cpn import CPNPayoff
-from app.payoff.dcd import DCDPayoff
+from app.payoff import CPNPayoff, DCDPayoff, ELNPayoff
 from app.schemas.product import ELNConfig, CPNConfig, DCDConfig
 
 
@@ -82,7 +80,7 @@ class TestELN:
         np.testing.assert_allclose(vec_finals, scalar_finals, atol=1e-6)
 
     def test_annualised_return_formula(self, eln_base):
-        from app.payoff.base import annualised_return
+        from app.payoff import annualised_return
         final = np.array([1_120_000.0])
         P = 1_000_000.0
         T = 1.0
@@ -133,6 +131,9 @@ class TestCPN:
         np.testing.assert_allclose(vec, scalar, atol=1e-6)
 
 
+MAT = 100_000 * (1 + 0.08 * 181 / 365)  # principal + interest, 181-day accrual
+
+
 class TestDCD:
     @pytest.fixture
     def dcd_base(self):
@@ -145,14 +146,15 @@ class TestDCD:
             interest_pa=0.08,
             base_currency="USD",
             alt_currency="INR",
+            start_date="2026-01-01",   # 6 months = 181 calendar days; interest accrues days/365
         )
 
     def test_not_converted(self, dcd_base):
-        """S=85 < K=86 → not converted, receive 100,000*(1+0.08*0.5) = 104,000 USD"""
+        """S=85 < K=86 → not converted, receive 100,000*(1+0.08*181/365) USD"""
         s0 = 84.0  # spot at start; S_T = s0 * x
         x = 85.0 / s0
         final = engine_dcd.final_value_with_s0(dcd_base, np.array([x]), s0=s0)[0]
-        expected = 100_000 * (1 + 0.08 * 0.5)  # 104,000
+        expected = MAT  # 103,967.12
         assert abs(final - expected) < 0.01, f"Got {final}, expected {expected}"
 
     def test_converted(self, dcd_base):
@@ -160,8 +162,7 @@ class TestDCD:
         s0 = 84.0
         x = 90.0 / s0
         final = engine_dcd.final_value_with_s0(dcd_base, np.array([x]), s0=s0)[0]
-        mat_amount = 104_000.0
-        expected = mat_amount * 86.0 / 90.0
+        expected = MAT * 86.0 / 90.0
         assert abs(final - expected) < 0.02, f"Got {final}, expected {expected:.2f}"
 
     def test_deep_conversion(self, dcd_base):
@@ -169,7 +170,7 @@ class TestDCD:
         s0 = 84.0
         x = 100.0 / s0
         final = engine_dcd.final_value_with_s0(dcd_base, np.array([x]), s0=s0)[0]
-        expected = 104_000.0 * 86.0 / 100.0
+        expected = MAT * 86.0 / 100.0
         assert abs(final - expected) < 0.02, f"Got {final}, expected {expected}"
 
     def test_alt_amount(self, dcd_base):
@@ -177,7 +178,7 @@ class TestDCD:
         s0 = 84.0
         x = 90.0 / s0
         alt = engine_dcd.alt_amount(dcd_base, np.array([x]), s0=s0)[0]
-        expected = 104_000.0 * 86.0  # INR amount
+        expected = MAT * 86.0  # INR amount
         assert abs(alt - expected) < 1, f"Got {alt}, expected {expected}"
 
     def test_not_converted_alt_amount_zero(self, dcd_base):
@@ -186,3 +187,36 @@ class TestDCD:
         x = 85.0 / s0
         alt = engine_dcd.alt_amount(dcd_base, np.array([x]), s0=s0)[0]
         assert alt == 0.0
+
+
+class TestAuditRegressions:
+    """Regression tests from the end-to-end audit."""
+
+    def test_eln_max_loss_is_total_collapse_not_curve_edge(self):
+        from app.analytics.metrics import _max_gain_loss, _payoff_curve
+        from app.schemas.product import parse_product_dict
+        c = parse_product_dict(dict(product_type="ELN", underlying="NIFTY50", tenor_months=12,
+                                    principal=1_000_000, barrier_pct=0.75, coupon_pa=0.10))
+        _, max_loss = _max_gain_loss(c, _payoff_curve(c, 100.0))
+        assert max_loss == pytest.approx(0.90)  # x -> 0: lose all principal, keep 10% coupon
+
+    def test_cpn_max_loss_matches_protection_floor(self):
+        from app.analytics.metrics import _max_gain_loss, _payoff_curve
+        from app.schemas.product import parse_product_dict
+        c = parse_product_dict(dict(product_type="CPN", underlying="NIFTY50", tenor_months=24,
+                                    principal=1_000_000, protection_pct=0.90, participation_pct=0.8))
+        _, max_loss = _max_gain_loss(c, _payoff_curve(c, 100.0))
+        assert max_loss == pytest.approx(0.10)
+
+    def test_dcd_replay_restrikes_strike_per_window(self):
+        """Strike is relative to window start spot, not an absolute level from today."""
+        import numpy as np, pandas as pd
+        from app.analytics.replay import run_replay
+        from app.schemas.product import parse_product_dict
+        # spot doubles every window; absolute strike 1.04*today would never convert historically
+        idx = pd.bdate_range("2010-01-01", periods=400)
+        s = pd.Series(np.linspace(40.0, 100.0, 400), index=idx)
+        c = parse_product_dict(dict(product_type="DCD", underlying="USDINR", tenor_months=3,
+                                    principal=100_000, strike=104.0, interest_pa=0.08))
+        r = run_replay(c, s, s0=100.0)
+        assert r.p_loss > 0.5  # every window rises far above +4% strike offset

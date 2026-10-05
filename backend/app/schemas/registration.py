@@ -49,7 +49,7 @@ SourceOfFunds = Literal[
 
 BrokerProvider = Literal["kite", "zerodha_console", "groww", "cred"]
 
-AccessTier = Literal["junior_rm", "senior_advisor", "branch_manager"]
+AccessTier = Literal["relationship_manager"]
 
 Jurisdiction = Literal["IN", "US", "UK", "AE", "SG", "EU", "HK", "AU"]
 
@@ -354,7 +354,13 @@ class RMSAccess(BaseModel):
     institution: str = Field(min_length=2, max_length=120)
     branch_code: str = Field(min_length=1, max_length=48)
     department: Optional[str] = Field(default=None, max_length=80)
-    access_tier: AccessTier
+    access_tier: AccessTier = "relationship_manager"
+
+    @field_validator("access_tier", mode="before")
+    @classmethod
+    def _single_role(cls, v: object) -> str:
+        # One RM role exists; legacy tier names from older clients map onto it.
+        return "relationship_manager"
 
     @field_validator("institution", "branch_code")
     @classmethod

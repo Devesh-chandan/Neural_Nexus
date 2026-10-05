@@ -23,8 +23,9 @@ router = APIRouter(tags=["market"])
 
 DISCLAIMER = (
     "Illustrative analysis using historical data and statistical models. "
-    "Past performance does not predict future results. Issuer credit risk and "
-    "liquidity risk are not modelled. This is a decision-support tool and not "
+    "Past performance does not predict future results. Issuer credit risk is shown only as a "
+    "generic illustrative assumption. Notes are held to maturity (no early redemption is offered) "
+    "and liquidity risk is not modelled. This is a decision-support tool and not "
     "investment advice; suitability must be confirmed by a qualified person."
 )
 

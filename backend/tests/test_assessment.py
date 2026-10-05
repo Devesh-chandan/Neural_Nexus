@@ -1,8 +1,8 @@
 """
-Offline tests for the Module 3 integration (app.assessment.*, POST /api/assess).
+Offline tests for the suitability integration (app.assessment.*, POST /api/assess).
 
-Module 2 runs for real against a synthetic local price CSV, as in test_simulation.py, so the
-Module 2 -> Module 3 hand-off is exercised end to end without network access.
+The replay runs for real against a synthetic local price CSV, as in test_simulation.py, so the
+replay -> suitability hand-off is exercised end to end without network access.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 import app.main as main_module
 from app.api import routes_assessment
-from app.assessment.service import assess_case, to_module3_client
+from app.assessment.service import assess_case, to_rules_client
 from app.simulation import service as simulation_service
 
 SEEDED_CLIENT = {
@@ -58,12 +58,12 @@ def synthetic_prices(tmp_path, monkeypatch):
     pd.DataFrame({"Date": dates.strftime("%Y-%m-%d"), "Close": closes}).to_csv(
         prices_dir / "NIFTY50.csv", index=False
     )
-    monkeypatch.setattr(simulation_service, "MODULE2_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(simulation_service, "SIM_DATA_DIR", str(tmp_path))
 
 
 class TestClientAdapter:
     def test_seeded_record_passes_through(self):
-        client, gaps = to_module3_client(seeded_case())
+        client, gaps = to_rules_client(seeded_case())
         assert client["_meta"]["aml_risk"] == "LOW"
         assert client["suitability_profile"]["loss_tolerance_pct"] == 0.35
         assert gaps == []
@@ -74,7 +74,7 @@ class TestClientAdapter:
             "loss_tolerance_pct": 15, "investable_assets": 5_000_000,
             "investment_amount": 500_000, "existing_exposure_underlying_pct": 5,
         })}
-        client, gaps = to_module3_client(case)
+        client, gaps = to_rules_client(case)
         suit = client["suitability_profile"]
         assert client["client_id"] == "AB12CD34"
         assert suit["risk_appetite"] == "MODERATE"
@@ -87,7 +87,7 @@ class TestClientAdapter:
 
 
 class TestAssessCase:
-    def test_module2_output_feeds_module3(self, synthetic_prices):
+    def test_replay_output_feeds_suitability(self, synthetic_prices):
         result = assess_case(seeded_case(), ELN_PRODUCT)
         sim, assessment = result["simulation"], result["assessment"]
         assert len(sim["scenarios"]) == 20
@@ -154,7 +154,7 @@ class TestAssessRoute:
 
 # ── Explanation layer (Groq LLM + validation + template fallback) ─────────────
 
-from app.assessment import explain as m3_explain  # noqa: E402
+from app.explain import engine as m3_explain  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.explain import llm as llm_module  # noqa: E402
 
@@ -174,7 +174,7 @@ def assessed(synthetic_prices):
 
 
 def facts_for(assessed):
-    client, gaps = to_module3_client(seeded_case())
+    client, gaps = to_rules_client(seeded_case())
     return m3_explain.build_facts(assessed["assessment"], assessed["simulation"], client, gaps)
 
 
@@ -247,7 +247,7 @@ class TestValidator:
 
 class TestExplainAssessment:
     def run(self, assessed):
-        client, gaps = to_module3_client(seeded_case())
+        client, gaps = to_rules_client(seeded_case())
         return m3_explain.explain_assessment(assessed["assessment"], assessed["simulation"], client, gaps)
 
     def test_valid_llm_reply_is_used(self, assessed, groq_settings, monkeypatch):

@@ -123,7 +123,7 @@ def seed_rms(cur, base_url: str, service_key: str, users: Dict[str, Dict[str, An
     print(f"Seeding {len(rms)} relationship managers...")
     for rm in rms:
         email = rm["corporate_email"].lower()
-        tier = rm["access_tier"].strip().lower()
+        tier = "relationship_manager"  # single RM role
         jurisdiction = rm["operating_jurisdiction"]
         authorised = products_by_jurisdiction.get(jurisdiction, [])
         registration = rm.get("regulatory_registration") or {}

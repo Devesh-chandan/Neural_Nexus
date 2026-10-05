@@ -1,9 +1,9 @@
 """
-Offline tests for the module2_simulation_engine bridge (app.simulation.*).
+Offline tests for the historical-replay bridge (app.simulation.*).
 
 Exercises the adapter (product config -> sim_engine payload) and the real sim_engine
 run_simulation() call end-to-end against a synthetic local price CSV, so no network access
-is required - consistent with module2_simulation_engine's own "56 tests, run offline" ethos.
+is required - consistent with the engine's own "56 tests, run offline" ethos.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import pytest
 
 from app.schemas.product import parse_product_dict
 from app.simulation.adapter import to_sim_engine_payload
-from app.simulation.bridge import Settings, run_simulation
+from app.simulation.service import Settings, run_simulation
 
 
 @pytest.fixture

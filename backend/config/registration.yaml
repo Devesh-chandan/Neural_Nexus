@@ -155,41 +155,17 @@ jurisdiction_product_matrix:
   IN-ONSHORE: ["ELN", "CPN", "DCD"]
   IN-GIFT-IFSC: ["ELN", "CPN", "DCD"]
 
-# ─── Access tiers (principle of least privilege) ────────────────────────────
+# ─── Access role ─────────────────────────────────────────────────────────────
+# A single Relationship Manager role holds every permission.
 access_tiers:
-  junior_rm:
-    label: "Junior RM"
+  relationship_manager:
+    label: "Relationship Manager"
     rank: 1
-    escalate_to: "Senior Advisor"
-    description: >
-      May load a client profile, simulate payoffs and read the suitability
-      outcome. Cannot confirm or finalise a product configuration.
-    permissions:
-      - simulate
-      - view_suitability
-      - draft_configuration
-      - view_client_kyc
-  senior_advisor:
-    label: "Senior Advisor"
-    rank: 2
-    escalate_to: "Branch Manager"
-    description: >
-      Everything a Junior RM can do, plus confirming and finalising a product
-      configuration for the client and issuing client-facing reports.
-    permissions:
-      - simulate
-      - view_suitability
-      - draft_configuration
-      - finalise_configuration
-      - export_report
-      - view_client_kyc
-  branch_manager:
-    label: "Branch Manager"
-    rank: 3
     escalate_to: null
     description: >
-      Full control: finalisation, suitability-override approval, branch-level
-      reporting and product catalogue management.
+      Full access: load client profiles, simulate payoffs, read suitability,
+      finalise product configurations, approve overrides, export client
+      reports, view branch reports and manage the product catalogue.
     permissions:
       - simulate
       - view_suitability

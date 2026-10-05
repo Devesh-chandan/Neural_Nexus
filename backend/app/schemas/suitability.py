@@ -48,3 +48,5 @@ class SuitabilityResult(BaseModel):
     tier: int = Field(ge=1, le=5)
     mismatches: List[RuleResult]
     summary_flags: SummaryFlags
+    # The full deterministic assessment this result was derived from (same contract as /api/assess).
+    assessment: Optional[Dict[str, Any]] = None

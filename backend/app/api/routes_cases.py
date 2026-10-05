@@ -17,6 +17,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ValidationError
 
+from app.assessment.redact import is_rm, redact_explanation, redact_suitability
 from app.core.errors import AppError
 from app.core.rbac import (
     PERM_FINALISE_CONFIGURATION,
@@ -45,8 +46,9 @@ router = APIRouter(tags=["cases"])
 
 DISCLAIMER = (
     "Illustrative analysis using historical data and statistical models. "
-    "Past performance does not predict future results. Issuer credit risk and "
-    "liquidity risk are not modelled. This is a decision-support tool and not "
+    "Past performance does not predict future results. Issuer credit risk is shown only as a "
+    "generic illustrative assumption. Notes are held to maturity (no early redemption is offered) "
+    "and liquidity risk is not modelled. This is a decision-support tool and not "
     "investment advice; suitability must be confirmed by a qualified person."
 )
 
@@ -208,13 +210,14 @@ def get_run(run_id: str, request: Request) -> Dict[str, Any]:
     if run is None:
         raise AppError(404, "RUN_NOT_FOUND", f"Run {run_id} not found.")
     _ensure_run_access(run, request.state.user)
+    rm = is_rm(request.state.user)
     return {
         "run_id": run["run_id"],
         "case_id": run.get("case_id"),
         "product": run["product_json"],
         "metrics": run["metrics_json"],
-        "suitability": run.get("suitability_json"),
-        "explanation": run.get("explanation_json"),
+        "suitability": run.get("suitability_json") if rm else redact_suitability(run.get("suitability_json")),
+        "explanation": run.get("explanation_json") if rm else redact_explanation(run.get("explanation_json")),
         "data_source": run.get("data_source"),
         "as_of": run.get("as_of"),
         "snapshot_id": run.get("snapshot_id"),
@@ -234,15 +237,16 @@ def export_run(
         raise AppError(404, "RUN_NOT_FOUND", f"Run {run_id} not found.")
     _ensure_run_access(run, request.state.user)
 
-    audit = get_audit_record(run_id) if request.state.user.get("user_type") == "rm" else None
+    rm = is_rm(request.state.user)
+    audit = get_audit_record(run_id) if rm else None
 
     if format == "json":
         return {
             "run_id": run_id,
             "product": run["product_json"],
             "metrics": run["metrics_json"],
-            "suitability": run.get("suitability_json"),
-            "explanation": run.get("explanation_json"),
+            "suitability": run.get("suitability_json") if rm else redact_suitability(run.get("suitability_json")),
+            "explanation": run.get("explanation_json") if rm else redact_explanation(run.get("explanation_json")),
             "audit": audit,
             "disclaimer": DISCLAIMER,
         }

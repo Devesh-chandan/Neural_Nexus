@@ -1,5 +1,5 @@
 """
-POST /api/simulate – real historical replay (module2_simulation_engine / sim_engine).
+POST /api/simulate – real historical replay (app.simulation.sim_engine).
 
 Replays the given product on 20 real historical market periods of matching length and
 returns dated, narrated scenarios with a SHA-256 fingerprint of the price data used. This is

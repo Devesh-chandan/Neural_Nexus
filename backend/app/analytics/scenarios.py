@@ -11,9 +11,7 @@ from typing import List
 import numpy as np
 
 from app.core.config import get_products_config
-from app.payoff.base import annualised_return, net_return
-from app.payoff.dcd import DCDPayoff
-from app.payoff.registry import get_engine
+from app.payoff import annualised_return, DCDPayoff, get_engine, net_return
 from app.schemas.analysis import ScenarioRow
 
 # The three named PS scenarios (shock values)

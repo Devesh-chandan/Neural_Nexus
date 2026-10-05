@@ -7,9 +7,7 @@ Implements three concerns described in the registration spec:
    client PII cannot be exfiltrated through a personal mailbox.
 2. **Jurisdiction gating** – an RM may only configure products that are legally
    sellable in the region they operate in.
-3. **Access tiers** – principle of least privilege. A Junior RM can simulate
-   payoffs; only a Senior Advisor or Branch Manager can confirm / finalise a
-   product configuration.
+3. **Single RM role** – every relationship manager holds every permission.
 
 All thresholds live in `config/registration.yaml` so compliance can retune them
 without touching code.
@@ -152,9 +150,12 @@ def product_jurisdiction_error(
 
 # ── Access tiers ─────────────────────────────────────────────────────────────
 
-def tier_key(access_tier: Optional[str]) -> str:
-    """Canonical tier key: seeded records use JUNIOR_RM, the config uses junior_rm."""
-    return (access_tier or "").strip().lower()
+RM_ROLE = "relationship_manager"
+
+
+def tier_key(access_tier: Optional[str] = None) -> str:
+    """There is a single RM role; any stored/legacy tier value maps onto it."""
+    return RM_ROLE
 
 
 def tier_entry(access_tier: Optional[str]) -> Optional[Dict[str, object]]:

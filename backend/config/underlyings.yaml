@@ -1,6 +1,8 @@
 # Underlyings whitelist
 # Each entry defines a supported asset that can be used as a product underlying.
 # Tickers are yfinance symbols.
+# dividend_yield: illustrative annual yield (fraction) for the indicative option pricer; update from
+# an issuer/market-data feed for real use. Historical prices are split-adjusted, NOT dividend-adjusted.
 
 NIFTY50:
   ticker: "^NSEI"
@@ -8,6 +10,7 @@ NIFTY50:
   asset_class: "equity_index"
   type: "equity_index"
   currency: "INR"
+  dividend_yield: 0.013   # illustrative trailing yield, used only by the indicative pricer
   sector: "broad_market"
 
 BANKNIFTY:
@@ -16,6 +19,7 @@ BANKNIFTY:
   asset_class: "equity_index"
   type: "equity_index"
   currency: "INR"
+  dividend_yield: 0.011   # illustrative trailing yield, used only by the indicative pricer
   sector: "financials"
 
 RELIANCE:
@@ -24,6 +28,7 @@ RELIANCE:
   asset_class: "equity"
   type: "equity"
   currency: "INR"
+  dividend_yield: 0.004   # illustrative trailing yield, used only by the indicative pricer
   sector: "energy_conglomerate"
 
 TCS:
@@ -32,6 +37,7 @@ TCS:
   asset_class: "equity"
   type: "equity"
   currency: "INR"
+  dividend_yield: 0.017   # illustrative trailing yield, used only by the indicative pricer
   sector: "technology"
 
 HDFCBANK:
@@ -40,6 +46,7 @@ HDFCBANK:
   asset_class: "equity"
   type: "equity"
   currency: "INR"
+  dividend_yield: 0.012   # illustrative trailing yield, used only by the indicative pricer
   sector: "financials"
 
 SP500:
@@ -48,6 +55,7 @@ SP500:
   asset_class: "equity_index"
   type: "equity_index"
   currency: "USD"
+  dividend_yield: 0.013   # illustrative trailing yield, used only by the indicative pricer
   sector: "broad_market"
 
 AAPL:
@@ -56,6 +64,7 @@ AAPL:
   asset_class: "equity"
   type: "equity"
   currency: "USD"
+  dividend_yield: 0.005   # illustrative trailing yield, used only by the indicative pricer
   sector: "technology"
 
 USDINR:

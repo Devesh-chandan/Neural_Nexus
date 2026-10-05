@@ -43,6 +43,8 @@ from app.schemas.recommend import (
     ProductCandidate,
     RecommendationResult,
 )
+from app.assessment.service import case_compliance_meta
+from app.store.cases import get_case
 from app.suitability.engine import evaluate_suitability
 from app.store.runs import generate_run_id, save_run
 
@@ -248,6 +250,8 @@ def run_recommendation(
     recommendation_id = str(uuid.uuid4()).replace("-", "")[:16].upper()
     as_of = datetime.now(timezone.utc).date().isoformat()
 
+    # Compliance screening comes from the client's case (if any); without it the AML gate is REVIEW.
+    meta = case_compliance_meta(get_case(case_id)) if case_id else None
     candidates_input = _build_all_candidates(profile, filters)
     logger.info("Recommendation: evaluating %d candidates", len(candidates_input))
 
@@ -256,7 +260,7 @@ def run_recommendation(
         try:
             df, source, data_as_of, snap = get_history(underlying_key)
             metrics = compute_metrics(config_obj, df["close"], include_monte_carlo=False)
-            suitability = evaluate_suitability(config_obj, profile, metrics)
+            suitability = evaluate_suitability(config_obj, profile, metrics, meta=meta)
         except Exception as exc:
             logger.debug("Candidate failed evaluation: %s – %s", config_obj, exc)
             continue
@@ -313,7 +317,7 @@ def run_recommendation(
                 "cvar5_loss_pct": round(e["cvar5"], 4),
                 "median_annualised_return": round(e["median_ann_ret"], 4),
                 "max_loss_pct": round(metrics.max_loss_pct, 4),
-                "max_gain_pct": round(metrics.max_gain_pct, 4),
+                "max_gain_pct": None if metrics.max_gain_pct is None else round(metrics.max_gain_pct, 4),
                 "stress_loss_pct": round(metrics.stress_loss_pct, 4),
             },
             suitability=suitability.model_dump(),

@@ -10,6 +10,12 @@ risk_free_rates:
 
 fd_baseline_rate: 0.070   # 7.0% p.a., illustrative fixed deposit comparison
 
+# Issuer credit (structured notes are unsecured claims on the issuer, so principal protection is
+# only as good as the issuer). ILLUSTRATIVE generic issuer assumptions, not a rating of any bank.
+issuer_credit:
+  credit_spread_bps: 150    # annual credit spread over risk-free for a generic bank issuer
+  recovery_rate: 0.40       # fraction of principal recovered on issuer default
+
 issuer_margin_haircut: 0.15   # 15% of option premium goes to issuer costs/margin
 
 # ─── Stress shocks (per asset class) ──────────────────────────────────────────
@@ -27,7 +33,7 @@ ELN:
     barrier_pct: 0.75
     coupon_pa: 0.10
     coupon_conditional: false
-    barrier_monitoring: "maturity"
+    barrier_monitoring: "daily"
     tenor_months: 12
     principal: 1000000
     currency: "INR"

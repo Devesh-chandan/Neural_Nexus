@@ -1,6 +1,6 @@
 """Translate the backend's product config objects into sim_engine's input shape.
 
-sim_engine (module2_simulation_engine) has its own, slightly different, field names and
+The replay engine (app.simulation.sim_engine) has its own, slightly different, field names and
 assumptions than the backend's own `app.schemas.product` configs. This module is the single
 place that bridges the two so the mapping is explicit and auditable in one spot.
 """
@@ -32,9 +32,8 @@ def _dcd_pair(underlying_key: str) -> str:
 def to_sim_engine_payload(config: ProductConfig) -> Dict[str, Any]:
     """Build the raw dict sim_engine.run_simulation() expects from a validated product config.
 
-    start_date and product_id are deliberately omitted: sim_engine defaults start_date to
-    today (an "as of now" replay, which is what the UI wants) and derives a stable product_id
-    from the terms itself.
+    product_id is omitted (derived from the terms). start_date is passed for a DCD, whose interest
+    accrues by calendar days from the trade date; other products default to today.
     """
     if isinstance(config, ELNConfig):
         return {
@@ -43,10 +42,10 @@ def to_sim_engine_payload(config: ProductConfig) -> Dict[str, Any]:
             "notional": config.principal,
             "tenor": config.tenor_months,
             "coupon_pa": config.coupon_pa,
-            # Backend's ELN payoff has no strike concept: x is compared straight to
-            # barrier_pct, which is exactly sim_engine's behaviour when strike_pct=1.0.
-            "strike_pct": 1.0,
+            "strike_pct": config.strike_pct,
             "barrier_pct": config.barrier_pct,
+            "barrier_monitoring": config.barrier_monitoring,
+            "coupon_conditional": config.coupon_conditional,
         }
     if isinstance(config, CPNConfig):
         return {
@@ -69,5 +68,6 @@ def to_sim_engine_payload(config: ProductConfig) -> Dict[str, Any]:
             "coupon_pa": config.interest_pa,
             "strike_rate": config.strike,
             "alt_currency": config.alt_currency,
+            "start_date": config.start_date.isoformat() if config.start_date else None,
         }
     raise AppError(422, "VALIDATION_ERROR", f"Unsupported product config: {type(config).__name__}")

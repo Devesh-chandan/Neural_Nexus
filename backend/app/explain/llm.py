@@ -7,13 +7,12 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-PROMPT_VERSION = "v1.0"
 TIMEOUT = 8  # seconds
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
@@ -23,24 +22,21 @@ DEFAULT_MODELS = {
     "openai": "gpt-4o",
 }
 
-SYSTEM_PROMPT = """You are a translator of pre-computed financial facts for non-expert clients.
+# Set when the provider reports a permanent configuration error (bad key / unknown model), so the
+# app stops paying a retry + timeout on every analysis and falls straight back to the template.
+_PERMANENT_FAILURE: Optional[str] = None
+_PERMANENT_STATUSES = (401, 403, 404)
 
-STRICT RULES:
-1. Do NOT calculate, estimate, or add facts not in the payload.
-2. Do NOT recommend buying or selling.
-3. Do NOT soften any flag or suitability verdict.
-4. NEVER use the words: guaranteed, risk-free, risk free, safe, no risk, cannot lose, will not lose, 100% safe.
-5. ALWAYS state the maximum possible loss and when it happens.
-6. ALWAYS mention that capital protection depends on the issuer (for CPN).
-7. Use a reading level appropriate for a general adult audience (clear, plain English).
-8. Return valid JSON with exactly two keys: "client_text" and "rm_text".
-9. client_text: 200–280 words covering sections: "What this product does", "How you could earn",
-   "When you could lose money and how much", "Why it does or does not fit you", "What to discuss with your RM".
-10. rm_text: 150–250 words, technical, listing rules triggered and numbers.
-11. The client name is provided only as a label — do not use it to personalise in a way that sounds like financial advice.
-"""
 
-USER_PROMPT_TEMPLATE = "Here are the pre-computed facts. Generate the explanation JSON:\n\n{facts_json}"
+def _note_failure(label: str, exc: Exception) -> None:
+    global _PERMANENT_FAILURE
+    status = getattr(exc, "status_code", None)
+    if status in _PERMANENT_STATUSES:
+        _PERMANENT_FAILURE = (
+            f"{label} rejected the request (HTTP {status}); check the API key and LLM_MODEL. "
+            "LLM calls are disabled until the server restarts."
+        )
+        logger.error(_PERMANENT_FAILURE)
 
 
 def active_model() -> Optional[str]:
@@ -54,6 +50,8 @@ def active_model() -> Optional[str]:
 def unavailable_reason() -> Optional[str]:
     """Why no LLM call will be made (shown as the fallback reason), or None if one will."""
     settings = get_settings()
+    if _PERMANENT_FAILURE:
+        return _PERMANENT_FAILURE
     if settings.llm_provider == "none":
         return "LLM_PROVIDER is 'none'."
     if settings.llm_provider not in DEFAULT_MODELS:
@@ -80,6 +78,7 @@ def _call_anthropic(system_prompt: str, user_prompt: str, max_tokens: int) -> Op
         return json.loads(msg.content[0].text)
     except Exception as exc:
         logger.warning("Anthropic LLM call failed: %s", exc)
+        _note_failure("Anthropic", exc)
         return None
 
 
@@ -102,6 +101,7 @@ def _call_openai_compatible(
         return json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:
         logger.warning("%s LLM call failed: %s", label, exc)
+        _note_failure(label, exc)
         return None
 
 
@@ -129,19 +129,9 @@ def call_llm_json(system_prompt: str, user_prompt: str, max_tokens: int = 1024) 
 
         if isinstance(result, dict):
             return result
+        if _PERMANENT_FAILURE:
+            break
         if attempt == 0:
             logger.info("LLM call failed; retrying once...")
 
     return None
-
-
-def call_llm(facts: Dict[str, Any]) -> Optional[Tuple[str, str]]:
-    """
-    Call the configured LLM provider with the facts payload.
-    Returns (client_text, rm_text) or None on failure.
-    """
-    facts_json = json.dumps(facts, indent=2, default=str)
-    parsed = call_llm_json(SYSTEM_PROMPT, USER_PROMPT_TEMPLATE.format(facts_json=facts_json))
-    if parsed is None:
-        return None
-    return parsed.get("client_text", ""), parsed.get("rm_text", "")

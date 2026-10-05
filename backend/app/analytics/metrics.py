@@ -7,6 +7,7 @@ cliff detection, volatility, replay, Monte Carlo (optional), pricing.
 from __future__ import annotations
 
 import logging
+import math
 import uuid
 from typing import List, Optional
 
@@ -19,10 +20,10 @@ from app.analytics.replay import run_replay
 from app.analytics.scenarios import build_scenario_table
 from app.analytics.vol import compute_vol
 from app.core.config import get_products_config, get_underlyings
-from app.payoff.base import annualised_return, net_return
-from app.payoff.dcd import DCDPayoff
-from app.payoff.registry import get_engine
+from app.core.errors import AppError
+from app.payoff import annualised_return, DCDPayoff, get_engine, net_return
 from app.schemas.analysis import (
+    IssuerCreditInfo,
     CliffInfo,
     FDBaseline,
     MetricsBundle,
@@ -34,10 +35,16 @@ logger = logging.getLogger(__name__)
 
 DISCLAIMER = (
     "Illustrative analysis using historical data and statistical models. "
-    "Past performance does not predict future results. Issuer credit risk and "
-    "liquidity risk are not modelled. This is a decision-support tool and not "
+    "Past performance does not predict future results. Issuer credit risk is shown only as a "
+    "generic illustrative assumption. Notes are held to maturity (no early redemption is offered) "
+    "and liquidity risk is not modelled. This is a decision-support tool and not "
     "investment advice; suitability must be confirmed by a qualified person."
 )
+
+
+# Sanity band for a DCD strike relative to current spot (rejects typos / wrong-unit strikes).
+DCD_STRIKE_RATIO_MIN = 0.5
+DCD_STRIKE_RATIO_MAX = 2.0
 
 
 def _payoff_curve(config: object, s0: float) -> List[PayoffPoint]:
@@ -74,7 +81,7 @@ def _payoff_curve(config: object, s0: float) -> List[PayoffPoint]:
     ]
 
 
-def _max_gain_loss(config: object, payoff_curve: List[PayoffPoint]) -> tuple:
+def _max_gain_loss(config: object, payoff_curve: List[PayoffPoint]) -> tuple:  # (max_gain | None, max_loss)
     """Compute theoretical max gain and max loss from the payoff curve."""
     P = config.principal  # type: ignore[attr-defined]
     finals = [p.final for p in payoff_curve]
@@ -82,7 +89,16 @@ def _max_gain_loss(config: object, payoff_curve: List[PayoffPoint]) -> tuple:
     min_final = min(finals)
     max_gain_pct = (max_final - P) / P
     max_loss_pct = max(0.0, (P - min_final) / P)
-    return round(max_gain_pct, 6), round(max_loss_pct, 6)
+    if config.product_type == "CPN" and config.cap_pct is None:  # type: ignore[attr-defined]
+        max_gain_pct = None  # uncapped participation: the plotted curve edge is not a real maximum
+    if config.product_type in ("ELN", "CPN"):  # type: ignore[attr-defined]
+        # The displayed curve only spans x in [0.4, 1.6]; the true worst case for these
+        # products is a total collapse of the underlying (x = 0), which the curve omits.
+        engine = get_engine(config.product_type)  # type: ignore[attr-defined]
+        pmx = 0.0 if getattr(config, "barrier_monitoring", None) == "daily" else None
+        worst_final = float(engine.final_value(config, np.array([0.0]), pmx)[0])  # type: ignore[arg-type]
+        max_loss_pct = max(max_loss_pct, max(0.0, (P - worst_final) / P))
+    return (None if max_gain_pct is None else round(max_gain_pct, 6)), round(max_loss_pct, 6)
 
 
 def _break_even_x(config: object) -> Optional[float]:
@@ -153,6 +169,22 @@ def _stress_loss(config: object, s0: float) -> float:
     return round(max(0.0, 1.0 - final / P), 6)
 
 
+def _issuer_credit(config: object) -> IssuerCreditInfo:
+    """Generic issuer default probability / expected loss over the tenor (reduced-form hazard model)."""
+    cfg = get_products_config()["issuer_credit"]
+    spread = cfg["credit_spread_bps"] / 10_000.0
+    recovery = cfg["recovery_rate"]
+    T = config.tenor_months / 12.0  # type: ignore[attr-defined]
+    hazard = spread / (1.0 - recovery)
+    pd_ = 1.0 - math.exp(-hazard * T)
+    return IssuerCreditInfo(
+        spread_bps=cfg["credit_spread_bps"],
+        recovery_rate=recovery,
+        default_probability=round(pd_, 6),
+        expected_loss_pct=round(pd_ * (1.0 - recovery), 6),
+    )
+
+
 def _fd_baseline(config: object) -> FDBaseline:
     """Fixed deposit comparison baseline."""
     cfg = get_products_config()
@@ -177,6 +209,17 @@ def compute_metrics(
     s0 = float(close_series.iloc[-1])
     P = config.principal  # type: ignore[attr-defined]
     T = config.tenor_months / 12.0  # type: ignore[attr-defined]
+
+    if config.product_type == "DCD":  # type: ignore[attr-defined]
+        lo = DCD_STRIKE_RATIO_MIN
+        hi = DCD_STRIKE_RATIO_MAX
+        ratio = config.strike / s0  # type: ignore[attr-defined]
+        if not (lo <= ratio <= hi):
+            raise AppError(
+                422, "VALIDATION_ERROR",
+                f"DCD strike {config.strike:g} is {ratio:.2f}x the current spot {s0:g}; "  # type: ignore[attr-defined]
+                f"it must be between {lo:g}x and {hi:g}x spot.",
+            )
 
     # Payoff curve
     curve = _payoff_curve(config, s0)
@@ -216,6 +259,8 @@ def compute_metrics(
 
     return MetricsBundle(
         max_gain_pct=max_gain_pct,
+        max_gain_label=(f"Uncapped · {config.participation_pct:.0%} of any rise"  # type: ignore[attr-defined]
+                        if max_gain_pct is None and config.product_type == "CPN" else None),  # type: ignore[attr-defined]
         max_loss_pct=max_loss_pct,
         break_even_x=be_x,
         scenario_table=scenarios,
@@ -227,4 +272,5 @@ def compute_metrics(
         payoff_curve=curve,
         cliff=cliff,
         pricing=pricing,
+        issuer_credit=_issuer_credit(config),
     )

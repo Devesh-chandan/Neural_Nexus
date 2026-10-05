@@ -2,7 +2,7 @@
 Indicative fair-value check (Section 6.7).
 
 Uses Black-Scholes / Garman-Kohlhagen with EWMA vol, configured risk-free rates,
-0 dividend yield, 15% issuer margin haircut. Exposes:
+per-underlying dividend yield (config/underlyings.yaml), 15% issuer margin haircut. Exposes:
   - indicative_coupon (or participation / interest) p.a.
   - pricing_flag: "ok" or "coupon_above_indicative"
 
@@ -53,6 +53,12 @@ def _get_rf_rate(currency: str) -> float:
     return cfg["risk_free_rates"].get(currency, 0.065)
 
 
+def _dividend_yield(config: object) -> float:
+    """Continuous dividend yield of the underlying (0 if not configured)."""
+    meta = get_underlyings().get(config.underlying, {})  # type: ignore[attr-defined]
+    return float(meta.get("dividend_yield", 0.0) or 0.0)
+
+
 def _get_margin() -> float:
     return get_products_config()["issuer_margin_haircut"]
 
@@ -65,8 +71,9 @@ def indicative_eln(config: object, sigma: float, s0: float) -> PricingInfo:
     B = config.barrier_pct * s0  # type: ignore[attr-defined]
 
     # Short put + cash-or-nothing put premium
-    put_val = _bs_put(s0, B, r, sigma, T)
-    con_put_val = _cash_or_nothing_put(s0, B, r, sigma, T)
+    q = _dividend_yield(config)
+    put_val = _bs_put(s0, B, r, sigma, T, q)
+    con_put_val = _cash_or_nothing_put(s0, B, r, sigma, T, q)
     # Combined: Put(K=B) + (S0 - B)*CashOrNothing(K=B), normalised by S0
     premium_fraction = (put_val + (s0 - B) * con_put_val) / s0
 
@@ -97,9 +104,10 @@ def indicative_cpn(config: object, sigma: float, s0: float) -> PricingInfo:
     option_budget = 1.0 - protection_pct * math.exp(-r * T)
 
     # ATM call (or call spread to cap if capped)
-    atm_call = _bs_call(s0, s0, r, sigma, T)
+    q = _dividend_yield(config)
+    atm_call = _bs_call(s0, s0, r, sigma, T, q)
     if cap_pct is not None:
-        cap_call = _bs_call(s0, s0 * (1.0 + cap_pct), r, sigma, T)
+        cap_call = _bs_call(s0, s0 * (1.0 + cap_pct), r, sigma, T, q)
         call_val = atm_call - cap_call
     else:
         call_val = atm_call
@@ -122,16 +130,18 @@ def indicative_cpn(config: object, sigma: float, s0: float) -> PricingInfo:
 def indicative_dcd(config: object, sigma: float, s0: float) -> PricingInfo:
     """DCD indicative interest rate per Section 6.7."""
     # For DCD: indicative interest = r_base + short_call_premium * (1-margin) / T
-    r = _get_rf_rate(config.base_currency)  # type: ignore[attr-defined]
+    r_base = _get_rf_rate(config.base_currency)  # type: ignore[attr-defined]
+    r_quote = _get_rf_rate(config.alt_currency)  # type: ignore[attr-defined]
     margin = _get_margin()
     T = config.tenor_months / 12.0  # type: ignore[attr-defined]
     K = config.strike  # type: ignore[attr-defined]
 
-    # Short call premium at strike K
-    call_val = _bs_call(s0, K, r, sigma, T)
+    # Garman-Kohlhagen: S is quoted in the alt currency per unit of base, so the domestic rate is
+    # the alt-currency rate and the foreign rate (the "dividend yield") is the base-currency rate.
+    call_val = _bs_call(s0, K, r_quote, sigma, T, q=r_base)
     call_fraction = call_val / s0 if s0 > 0 else 0.0
 
-    indicative_interest = r + call_fraction * (1 - margin) / T
+    indicative_interest = r_base + call_fraction * (1 - margin) / T
     client_interest = config.interest_pa  # type: ignore[attr-defined]
     flag = "ok"
     if client_interest > indicative_interest * 1.25:

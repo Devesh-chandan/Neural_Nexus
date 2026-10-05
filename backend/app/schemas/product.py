@@ -1,6 +1,7 @@
 """Product configuration schemas (discriminated union on product_type)."""
 from __future__ import annotations
 
+import datetime as dt
 from typing import Annotated, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -10,19 +11,23 @@ class ELNConfig(BaseModel):
     product_type: Literal["ELN"] = "ELN"
     underlying: str
     tenor_months: int = Field(ge=3, le=36)
-    principal: float = Field(gt=0)
+    principal: float = Field(gt=0, le=1e12, allow_inf_nan=False)
     currency: str = "INR"
+    # Strike as a fraction of the start price: below it (after a barrier breach) the loss is passed on.
+    strike_pct: float = Field(default=1.0, gt=0, le=1.0, allow_inf_nan=False)
     barrier_pct: float = Field(ge=0.40, le=0.95)
     coupon_pa: float = Field(ge=0.00, le=0.40)
     coupon_conditional: bool = False
-    barrier_monitoring: Literal["maturity", "daily"] = "maturity"
+    # "daily": any daily close below the barrier breaches it (default, same as the replay engine);
+    # "maturity": only the final close is compared with the barrier.
+    barrier_monitoring: Literal["maturity", "daily"] = "daily"
 
 
 class CPNConfig(BaseModel):
     product_type: Literal["CPN"] = "CPN"
     underlying: str
     tenor_months: int = Field(ge=3, le=36)
-    principal: float = Field(gt=0)
+    principal: float = Field(gt=0, le=1e12, allow_inf_nan=False)
     currency: str = "INR"
     protection_pct: float = Field(ge=0.80, le=1.00)
     participation_pct: float = Field(ge=0.10, le=2.00)
@@ -33,15 +38,20 @@ class DCDConfig(BaseModel):
     product_type: Literal["DCD"] = "DCD"
     underlying: str   # must be an FX key
     tenor_months: int = Field(ge=3, le=36)
-    principal: float = Field(gt=0)
+    principal: float = Field(gt=0, le=1e12, allow_inf_nan=False)
     currency: str  # base currency of the deposit
-    strike: float = Field(gt=0)
+    strike: float = Field(gt=0, allow_inf_nan=False)
     interest_pa: float = Field(ge=0.00, le=0.30)
     base_currency: str
     alt_currency: str
+    # Trade date the interest accrues from (calendar days / 365). Defaults to today and is then fixed
+    # in the stored terms, so a saved analysis always reproduces the same numbers.
+    start_date: Optional[dt.date] = None
 
     @model_validator(mode="after")
     def currency_match(self) -> "DCDConfig":
+        if self.start_date is None:
+            self.start_date = dt.date.today()
         if self.currency != self.base_currency:
             self.currency = self.base_currency
         return self

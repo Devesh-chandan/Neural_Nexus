@@ -201,7 +201,7 @@ class TestRMRegistration:
                 "institution": f"ICICI Wealth {uid}",
                 "branch_code": "MUM-01",
                 "department": "Private Banking",
-                "access_tier": "junior_rm",
+                "access_tier": "relationship_manager",
             },
             "password": "DemoRmPassword123!",
         }
@@ -209,8 +209,8 @@ class TestRMRegistration:
         assert res.status_code == 200, res.text
         data = res.json()
         assert data["rm_id"].startswith("RM")
-        assert data["access_tier"] == "junior_rm"
-        assert data["rbac"]["can_finalise"] is False
+        assert data["access_tier"] == "relationship_manager"
+        assert data["rbac"]["can_finalise"] is True
 
     def test_register_rm_senior_advisor(self):
         uid = uuid.uuid4().hex[:6].upper()
@@ -229,14 +229,14 @@ class TestRMRegistration:
                 "institution": f"Kotak Wealth {uid}",
                 "branch_code": "DEL-02",
                 "department": "Structured Products",
-                "access_tier": "senior_advisor",
+                "access_tier": "relationship_manager",
             },
             "password": "DemoRmPassword123!",
         }
         res = client.post("/api/registration/rm", json=payload)
         assert res.status_code == 200, res.text
         data = res.json()
-        assert data["access_tier"] == "senior_advisor"
+        assert data["access_tier"] == "relationship_manager"
         assert data["rbac"]["can_finalise"] is True
 
     def test_duplicate_employee_id_conflict(self):
@@ -257,7 +257,7 @@ class TestRMRegistration:
             "access": {
                 "institution": inst,
                 "branch_code": "BLR-01",
-                "access_tier": "junior_rm",
+                "access_tier": "relationship_manager",
             },
             "password": "DemoRmPassword123!",
         }

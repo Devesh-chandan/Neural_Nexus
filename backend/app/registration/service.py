@@ -109,14 +109,7 @@ def register_rm_record(reg: RMSRegistration) -> RMSRegistrationResponse:
         jurisdiction, reg.compliance.product_types_authorised
     )
 
-    tier_cfg = tier_entry(reg.access.access_tier) or {}
     effective_tier = tier_key(reg.access.access_tier)
-
-    # Principle of least privilege: an RM can never hold a tier above the rank
-    # their own clearance allows them to grant.
-    requested_rank = tier_cfg.get("rank", 1)
-    if requested_rank > 3:
-        effective_tier = "branch_manager"
 
     return RMSRegistrationResponse(
         rm_id="",  # filled in by the route after persistence

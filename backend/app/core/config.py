@@ -34,6 +34,9 @@ class Settings:
         for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
         if o.strip()
     ]
+    rate_limit_enabled: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() not in ("0", "false", "no")
+    rate_limit_scale: float = float(os.getenv("RATE_LIMIT_SCALE", "1.0"))  # multiplies every limit
+    trust_proxy_headers: bool = os.getenv("TRUST_PROXY_HEADERS", "false").lower() in ("1", "true", "yes")
     log_level: str = os.getenv("LOG_LEVEL", "INFO").upper()
 
     # Derived paths

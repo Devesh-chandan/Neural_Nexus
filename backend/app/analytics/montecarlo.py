@@ -13,10 +13,10 @@ import numpy as np
 import pandas as pd
 
 from app.core.config import get_products_config
-from app.payoff.base import annualised_return, net_return
-from app.payoff.dcd import DCDPayoff
-from app.payoff.registry import get_engine
+from app.analytics.replay import window_outcomes
+from app.payoff import annualised_return, net_return
 from app.schemas.analysis import HistogramBin, MonteCarloResult
+from app.simulation.sim_engine.windows import build_windows
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +59,14 @@ def run_monte_carlo(
     tenor_months = config.tenor_months  # type: ignore[attr-defined]
     P = config.principal  # type: ignore[attr-defined]
     T = tenor_months / 12.0
-    td_per_month = cfg_global["replay"]["trading_days_per_month"]
-    n_steps = round(tenor_months * td_per_month)
 
     close = close_series.values.astype(float)
+    dates = pd.DatetimeIndex(close_series.index)
+    # Path length = trading days in one tenor, measured the same way as the historical windows.
+    win = build_windows(dates, close, tenor_months)
+    n_steps = int(np.median(win.end - win.start)) if len(win) else round(tenor_months * 21)
+    n_steps = max(1, n_steps)
+
     log_ret = np.diff(np.log(close))
     if demean:
         log_ret = log_ret - log_ret.mean()
@@ -75,62 +79,30 @@ def run_monte_carlo(
     # For each path sample n_blocks_needed block start indices
     starts = rng.integers(0, max(1, n_ret - block_size + 1), size=(n_paths, n_blocks_needed))
 
-    engine = get_engine(config.product_type)  # type: ignore[attr-defined]
-    is_dcd = config.product_type == "DCD"  # type: ignore[attr-defined]
-    is_daily = (
-        hasattr(config, "barrier_monitoring")
-        and config.barrier_monitoring == "daily"  # type: ignore[attr-defined]
-    )
-
     if s0 is None:
         s0 = float(close[-1])
 
-    finals: List[float] = []
     # Fan: sample at ~fan_n evenly-spaced time points
     fan_times = np.linspace(0, n_steps, fan_n, dtype=int)
     fan_paths_matrix = np.zeros((n_paths, len(fan_times)))
+    x_end = np.zeros(n_paths)
+    x_low = np.zeros(n_paths)
 
     for p_idx in range(n_paths):
-        # Build return sequence
-        path_ret = []
-        for b in starts[p_idx]:
-            block = log_ret[int(b) : int(b) + block_size]
-            path_ret.extend(block.tolist())
-        path_ret = path_ret[:n_steps]
-
-        # Build price path (relative to s0)
-        cum = np.concatenate([[0.0], np.cumsum(path_ret)])
-        price_path = np.exp(cum)  # ratio relative to s0
-
-        # Store fan samples
+        path_ret = np.concatenate([log_ret[int(b): int(b) + block_size] for b in starts[p_idx]])[:n_steps]
+        price_path = np.exp(np.concatenate([[0.0], np.cumsum(path_ret)]))  # ratio relative to s0
         fan_paths_matrix[p_idx] = price_path[np.minimum(fan_times, len(price_path) - 1)]
+        x_end[p_idx] = price_path[-1]
+        x_low[p_idx] = price_path.min()
 
-        x = float(price_path[-1])
-        path_min_x = float(np.min(price_path))
-
-        if is_dcd:
-            dcd_engine: DCDPayoff = engine  # type: ignore[assignment]
-            final = float(
-                dcd_engine.final_value_with_s0(config, np.array([x]), s0=s0)[0]  # type: ignore[arg-type]
-            )
-        else:
-            pmx = path_min_x if is_daily else None
-            final = float(engine.final_value(config, np.array([x]), pmx)[0])  # type: ignore[arg-type]
-
-        finals.append(final)
-
-    finals_arr = np.array(finals)
+    # Money back for every path through the shared payoff formulas (same as the replay).
+    strike_ratio = (config.strike / s0) if config.product_type == "DCD" else 1.0  # type: ignore[attr-defined]
+    finals_arr, breach_flags = window_outcomes(config, x_end, x_low, strike_ratio)
     nr_arr = net_return(finals_arr, P)
     ann_ret = annualised_return(finals_arr, P, T)
 
     p_loss = float(np.mean(finals_arr < P))
-    breach_freq = 0.0
-    if hasattr(config, "barrier_pct"):
-        x_all = fan_paths_matrix[:, -1]
-        if is_daily:
-            breach_freq = float(np.mean(np.min(fan_paths_matrix, axis=1) < config.barrier_pct))  # type: ignore[attr-defined]
-        else:
-            breach_freq = float(np.mean(x_all < config.barrier_pct))  # type: ignore[attr-defined]
+    breach_freq = float(np.mean(breach_flags))
 
     loss_vals = 1.0 - finals_arr / P
     worst_loss_pct = float(np.max(np.maximum(loss_vals, 0.0)))

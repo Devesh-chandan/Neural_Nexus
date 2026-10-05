@@ -1,5 +1,7 @@
 """
 Suitability score and traffic-light summary (Section 7.4).
+
+Also holds the product risk tier (1-5) computed from the replay statistics.
 """
 from __future__ import annotations
 
@@ -7,7 +9,6 @@ from typing import List
 
 from app.core.config import get_registration_config, get_suitability_rules
 from app.schemas.analysis import MetricsBundle
-from app.schemas.client import ClientProfile
 from app.schemas.suitability import RuleResult, ScoreDriver, SummaryFlags
 
 
@@ -22,6 +23,8 @@ _WEIGHTS = {
     "R-AGE": 10,
     "R-AFFORD": 15,
     "R-KYC": 0,
+    "R-COMPLIANCE": 10,
+    "R-LIQ": 10,
 }
 
 # Informational rules that deduct a flat number of points when they fire,
@@ -83,6 +86,13 @@ def compute_score(rules: List[RuleResult]) -> tuple:
     return round(score, 2), drivers
 
 
+_ORDER = {"GREEN": 0, "AMBER": 1, "RED": 2}
+
+
+def _worst(*statuses: str) -> str:
+    return max(statuses, key=_ORDER.get)
+
+
 def compute_summary_flags(rules: List[RuleResult], metrics: MetricsBundle) -> SummaryFlags:
     """Map rules and metrics to the 7 traffic-light flags."""
     def _status(rule_id: str) -> str:
@@ -118,5 +128,30 @@ def compute_summary_flags(rules: List[RuleResult], metrics: MetricsBundle) -> Su
         complexity=_status("R-COMPLEX"),
         life_stage=_status("R-AGE"),
         affordability=_status("R-AFFORD"),
-        kyc_aml=_status("R-KYC"),
+        kyc_aml=_worst(_status("R-KYC"), _status("R-COMPLIANCE")),
     )
+
+
+def compute_tier(metrics: MetricsBundle) -> int:
+    cfg = get_suitability_rules()
+    thresholds = cfg["tier_thresholds"]
+
+    if metrics.max_loss_pct == 0.0:
+        return 1
+
+    # Get CVaR and p_loss from replay; fall back to stress_loss
+    if metrics.replay and metrics.replay.n_windows > 0:
+        cvar5 = metrics.replay.cvar5_loss_pct
+        p_loss = metrics.replay.p_loss
+    else:
+        # Use stress_loss as proxy
+        cvar5 = metrics.stress_loss_pct
+        p_loss = 1.0 if metrics.stress_loss_pct > 0 else 0.0
+
+    if cvar5 <= thresholds["t2_cvar"] and p_loss <= thresholds["t2_p_loss"]:
+        return 2
+    if cvar5 <= thresholds["t3_cvar"]:
+        return 3
+    if cvar5 <= thresholds["t4_cvar"]:
+        return 4
+    return 5

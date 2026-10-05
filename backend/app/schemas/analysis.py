@@ -42,6 +42,8 @@ class ReplayResult(BaseModel):
     p_loss: float
     breach_frequency: float
     worst_loss_pct: float
+    # Lowest net return of any window; unlike worst_loss_pct it can be positive (every window gained).
+    worst_return_pct: Optional[float] = None
     median_annualised_return: float
     cvar5_loss_pct: float
     crisis_presets: List[CrisisPreset]
@@ -84,6 +86,14 @@ class PricingInfo(BaseModel):
     label: str = "Indicative, model-based sanity check, not an issuer quote."
 
 
+class IssuerCreditInfo(BaseModel):
+    spread_bps: float
+    recovery_rate: float
+    default_probability: float     # cumulative issuer default probability over the tenor
+    expected_loss_pct: float       # default_probability x (1 - recovery), as a fraction of principal
+    label: str = "Illustrative generic-issuer assumption, not a rating of the actual issuer."
+
+
 class PayoffPoint(BaseModel):
     x: float
     final: float
@@ -91,7 +101,9 @@ class PayoffPoint(BaseModel):
 
 
 class MetricsBundle(BaseModel):
-    max_gain_pct: float
+    max_gain_pct: Optional[float] = None  # None = no upper limit (uncapped participation)
+    # Short text for display when max_gain_pct is None, e.g. "Uncapped · 80% of any rise".
+    max_gain_label: Optional[str] = None
     max_loss_pct: float
     break_even_x: Optional[float]
     scenario_table: List[ScenarioRow]
@@ -103,6 +115,7 @@ class MetricsBundle(BaseModel):
     payoff_curve: List[PayoffPoint]
     cliff: Optional[CliffInfo]
     pricing: PricingInfo
+    issuer_credit: Optional[IssuerCreditInfo] = None
 
 
 class AnalyzeRequest(BaseModel):
@@ -122,6 +135,6 @@ class AnalyzeResponse(BaseModel):
     disclaimer: str = (
         "Illustrative analysis using historical data and statistical models. "
         "Past performance does not predict future results. Issuer credit risk "
-        "and liquidity risk are not modelled. This is a decision-support tool "
+        "is shown only as a generic illustrative assumption and liquidity risk is not modelled. This is a decision-support tool "
         "and not investment advice; suitability must be confirmed by a qualified person."
     )

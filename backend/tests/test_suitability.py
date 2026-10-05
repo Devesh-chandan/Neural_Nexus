@@ -206,7 +206,8 @@ class TestSuitabilityPersonas:
             experience="experienced",
         )
         config = _eln()
-        metrics = _make_metrics(stress_loss_pct=0.25)
+        # The loss rule reads the worst historical period: 25% loss vs a 0% tolerance.
+        metrics = _make_metrics(stress_loss_pct=0.25, replay_kwargs={"worst_loss": 0.25})
         result = evaluate_suitability(config, profile, metrics)
         rule_ids = {r.rule_id: r.status for r in result.rules}
         assert rule_ids["R-LOSS"] == "RED"
@@ -244,7 +245,7 @@ class TestSuitabilityPersonas:
         """A RED on R-LOSS must always produce NOT_SUITABLE regardless of other scores"""
         profile = _conservative(tolerance=1.0)  # 1% tolerance
         config = _eln()
-        metrics = _make_metrics(stress_loss_pct=0.30)  # massively over tolerance
+        metrics = _make_metrics(stress_loss_pct=0.30, replay_kwargs={"worst_loss": 0.30})  # far over tolerance
         result = evaluate_suitability(config, profile, metrics)
         assert result.verdict == "NOT_SUITABLE"
         assert any(r.rule_id == "R-LOSS" and r.status == "RED" for r in result.rules)

@@ -1,5 +1,9 @@
 """
-POST /api/explain – generate explanation for a stored run.
+POST /api/explain – the explanation stored with an analysis run.
+
+Explanations are generated once, together with the analysis, from the deterministic facts of that
+run (`app.explain.engine`). Re-generating later could cite different numbers than the ones the
+client was shown and the audit trail recorded, so this returns the stored explanation as is.
 """
 from __future__ import annotations
 
@@ -9,9 +13,8 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.api.routes_cases import _ensure_run_access
+from app.assessment.redact import is_rm, redact_explanation
 from app.core.errors import AppError
-from app.explain.payload import build_payload
-from app.explain.service import generate_explanation
 from app.store.runs import load_run
 
 router = APIRouter(tags=["explain"])
@@ -19,7 +22,6 @@ router = APIRouter(tags=["explain"])
 
 class ExplainRequest(BaseModel):
     run_id: str
-    audience: str = "client"
 
 
 @router.post("/explain")
@@ -28,19 +30,8 @@ def explain_run(req: ExplainRequest, request: Request) -> Dict[str, Any]:
     if run is None:
         raise AppError(404, "RUN_NOT_FOUND", f"Run {req.run_id} not found.")
     _ensure_run_access(run, request.state.user)
-
-    # Reconstruct minimal facts from stored run
-    facts: Dict[str, Any] = {
-        "run_id": req.run_id,
-        "product": run.get("product_json", {}),
-        "profile": {},
-        "metrics": run.get("metrics_json", {}).get("metrics", run.get("metrics_json", {})),
-        "suitability": run.get("suitability_json", {}),
-        "data_source": run.get("data_source", ""),
-        "as_of": run.get("as_of", ""),
-        "snapshot_id": run.get("snapshot_id", ""),
-        "disclaimer": "Illustrative analysis. Not investment advice.",
-    }
-
-    explanation = generate_explanation(facts)
-    return {"explanation": explanation.model_dump()}
+    explanation = run.get("explanation_json")
+    if not explanation:
+        raise AppError(422, "NO_EXPLANATION",
+                       "This run has no explanation: it was analysed without a client profile.")
+    return {"explanation": explanation if is_rm(request.state.user) else redact_explanation(explanation)}
