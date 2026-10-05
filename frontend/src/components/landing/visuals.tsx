@@ -120,30 +120,30 @@ export const PayoffSVG: React.FC<{ height?: number; animate?: boolean; showStres
       style={{ display: 'block' }}>
       {yTicks.map((t) => (
         <g key={t}>
-          <line x1={pad.l} x2={W - pad.r} y1={sy(t)} y2={sy(t)} stroke={t === 0 ? '#9ca3af' : '#eef0f3'} />
-          <text x={pad.l - 6} y={sy(t) + 3.5} textAnchor="end" fontSize="10" fill="#6b7280">{t === 0 ? '0%' : pct(t, 0)}</text>
+          <line x1={pad.l} x2={W - pad.r} y1={sy(t)} y2={sy(t)} stroke={t === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.07)'} />
+          <text x={pad.l - 6} y={sy(t) + 3.5} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.5)">{t === 0 ? '0%' : pct(t, 0)}</text>
         </g>
       ))}
       {xTicks.map((t) => (
-        <text key={t} x={sx(t)} y={H - 8} textAnchor="middle" fontSize="10" fill="#6b7280">{Math.round(t * 100)}%</text>
+        <text key={t} x={sx(t)} y={H - 8} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.5)">{Math.round(t * 100)}%</text>
       ))}
       {/* loss region */}
       <rect x={sx(X_MIN)} y={sy(0)} width={sx(X_MAX) - sx(X_MIN)} height={sy(Y_MIN) - sy(0)} fill="rgba(226,59,74,0.05)" />
       {/* barrier */}
-      <line x1={sx(b)} x2={sx(b)} y1={pad.t} y2={H - pad.b} stroke="#ec7e00" strokeDasharray="4 4" strokeOpacity="0.8" />
-      <text x={sx(b) - 5} y={pad.t + 9} textAnchor="end" fontSize="10" fill="#ec7e00">Barrier 75%</text>
+      <line x1={sx(b)} x2={sx(b)} y1={pad.t} y2={H - pad.b} stroke="#fbbf24" strokeDasharray="4 4" strokeOpacity="0.8" />
+      <text x={sx(b) - 5} y={pad.t + 9} textAnchor="end" fontSize="10" fill="#fbbf24">Barrier 75%</text>
       {/* spot */}
-      <line x1={sx(1)} x2={sx(1)} y1={pad.t} y2={H - pad.b} stroke="#9ca3af" strokeDasharray="2 4" />
-      <text x={sx(1) + 5} y={pad.t + 9} fontSize="10" fill="#6b7280">Spot 100%</text>
+      <line x1={sx(1)} x2={sx(1)} y1={pad.t} y2={H - pad.b} stroke="rgba(255,255,255,0.22)" strokeDasharray="2 4" />
+      <text x={sx(1) + 5} y={pad.t + 9} fontSize="10" fill="rgba(255,255,255,0.5)">Spot 100%</text>
 
-      <path d={lower} className={animate ? 'cal-draw' : undefined} pathLength={1} fill="none" stroke="#e23b4a" strokeWidth="2.25" strokeLinecap="round" />
-      <path d={jump} fill="none" stroke="#9ca3af" strokeDasharray="3 3" />
-      <path d={upper} className={animate ? 'cal-draw cal-draw-2' : undefined} pathLength={1} fill="none" stroke="#00a87e" strokeWidth="2.25" strokeLinecap="round" />
+      <path d={lower} className={animate ? 'cal-draw' : undefined} pathLength={1} fill="none" stroke="#f87171" strokeWidth="2.25" strokeLinecap="round" />
+      <path d={jump} fill="none" stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />
+      <path d={upper} className={animate ? 'cal-draw cal-draw-2' : undefined} pathLength={1} fill="none" stroke="#34d399" strokeWidth="2.25" strokeLinecap="round" />
 
       {showStress && (
         <g>
-          <circle cx={sx(stressX)} cy={sy(elnReturn(stressX))} r="4.5" fill="#fff" stroke="#111827" strokeWidth="1.5" />
-          <text x={sx(stressX) + 9} y={sy(elnReturn(stressX)) + 4} fontSize="10" fill="#111827">−30% stress → {pct(elnReturn(stressX))}</text>
+          <circle cx={sx(stressX)} cy={sy(elnReturn(stressX))} r="4.5" fill="#000" stroke="#fff" strokeWidth="1.5" />
+          <text x={sx(stressX) + 9} y={sy(elnReturn(stressX)) + 4} fontSize="10" fill="#fff">−30% stress → {pct(elnReturn(stressX))}</text>
         </g>
       )}
     </svg>
@@ -199,22 +199,22 @@ export const FanSVG: React.FC<{ height?: number }> = ({ height = 280 }) => {
       aria-label="Illustrative Monte Carlo fan chart with 5th to 95th percentile bands" style={{ display: 'block' }}>
       {[0.6, 0.8, 1, 1.25, 1.5, 1.8].map((v) => (
         <g key={v}>
-          <line x1={pad.l} x2={W - pad.r} y1={sy(v)} y2={sy(v)} stroke={v === 1 ? '#9ca3af' : '#eef0f3'} />
-          <text x={pad.l - 6} y={sy(v) + 3.5} textAnchor="end" fontSize="10" fill="#6b7280">{Math.round(v * 100)}%</text>
+          <line x1={pad.l} x2={W - pad.r} y1={sy(v)} y2={sy(v)} stroke={v === 1 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.07)'} />
+          <text x={pad.l - 6} y={sy(v) + 3.5} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.5)">{Math.round(v * 100)}%</text>
         </g>
       ))}
       {[0, 3, 6, 9, 12].map((m) => (
-        <text key={m} x={sx(m / 12)} y={H - 8} textAnchor="middle" fontSize="10" fill="#6b7280">{m}M</text>
+        <text key={m} x={sx(m / 12)} y={H - 8} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.5)">{m}M</text>
       ))}
-      <path d={band(-1.645, 1.645)} fill="rgba(79,70,229,0.10)" />
-      <path d={band(-0.674, 0.674)} fill="rgba(79,70,229,0.20)" />
-      {paths.map((d, i) => (<path key={i} d={d} fill="none" stroke="rgba(17,24,39,0.14)" strokeWidth="0.8" />))}
-      <path d={line(0)} fill="none" stroke="#4f46e5" strokeWidth="2" />
-      <line x1={pad.l} x2={W - pad.r} y1={sy(0.75)} y2={sy(0.75)} stroke="#ec7e00" strokeDasharray="4 4" strokeOpacity="0.8" />
-      <text x={W - pad.r - 4} y={sy(0.75) - 5} textAnchor="end" fontSize="10" fill="#ec7e00">Barrier 75%</text>
-      <text x={sx(1) - 6} y={sy(q(1.645, 1)) - 6} textAnchor="end" fontSize="10" fill="#6b7280">95th</text>
-      <text x={sx(1) - 6} y={sy(q(0, 1)) - 6} textAnchor="end" fontSize="10" fill="#4f46e5">Median</text>
-      <text x={sx(1) - 6} y={sy(q(-1.645, 1)) + 14} textAnchor="end" fontSize="10" fill="#6b7280">5th</text>
+      <path d={band(-1.645, 1.645)} fill="rgba(129,140,248,0.14)" />
+      <path d={band(-0.674, 0.674)} fill="rgba(129,140,248,0.26)" />
+      {paths.map((d, i) => (<path key={i} d={d} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.8" />))}
+      <path d={line(0)} fill="none" stroke="#818cf8" strokeWidth="2" />
+      <line x1={pad.l} x2={W - pad.r} y1={sy(0.75)} y2={sy(0.75)} stroke="#fbbf24" strokeDasharray="4 4" strokeOpacity="0.8" />
+      <text x={W - pad.r - 4} y={sy(0.75) - 5} textAnchor="end" fontSize="10" fill="#fbbf24">Barrier 75%</text>
+      <text x={sx(1) - 6} y={sy(q(1.645, 1)) - 6} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.5)">95th</text>
+      <text x={sx(1) - 6} y={sy(q(0, 1)) - 6} textAnchor="end" fontSize="10" fill="#818cf8">Median</text>
+      <text x={sx(1) - 6} y={sy(q(-1.645, 1)) + 14} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.5)">5th</text>
     </svg>
   );
 };

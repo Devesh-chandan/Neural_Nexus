@@ -15,16 +15,18 @@ import {
 /* ─── Tokens (Inter + JetBrains Mono, the site's own fonts) ─────────────── */
 
 const C = {
-  ink: '#1c1c1c',
-  body: '#6b6b6b',
-  mute: '#8a8a8a',
-  line: '#e6e6e6',
-  page: '#f3f3f3',
-  tile: '#f6f6f6',
-  green: '#12875f',
-  amber: '#c2710c',
-  red: '#d33a3a',
-  indigo: '#4f46e5',
+  ink: '#f4f4f4',
+  body: '#a3a3a3',
+  mute: '#7c7c7c',
+  line: '#262626',
+  page: '#0a0a0a',
+  tile: '#161616',
+  card: '#101010',
+  raised: '#161616',
+  green: '#34d399',
+  amber: '#fbbf24',
+  red: '#f87171',
+  indigo: '#818cf8',
 };
 
 type Status = 'PASS' | 'REVIEW' | 'FAIL';
@@ -152,33 +154,33 @@ html { scroll-behavior: smooth; }
 
 /* floating nav */
 .cal-nav { position:sticky; top:10px; z-index:60; padding:0 12px; margin-top:10px; }
-.cal-nav-pill { max-width:1440px; margin:0 auto; height:70px; background:#fff; border:1px solid ${C.line}; border-radius:18px; display:flex; align-items:center; justify-content:space-between; padding:0 24px 0 38px; box-shadow:0 2px 10px rgba(0,0,0,.03); }
+.cal-nav-pill { max-width:1440px; margin:0 auto; height:70px; background:rgba(16,16,16,.92); backdrop-filter:blur(12px); border:1px solid ${C.line}; border-radius:18px; display:flex; align-items:center; justify-content:space-between; padding:0 24px 0 38px; box-shadow:0 2px 14px rgba(0,0,0,.5); }
 .cal-links { display:flex; gap:6px; }
 .cal-links a { color:${C.ink}; text-decoration:none; font-size:15.5px; font-weight:500; padding:8px 18px; border-radius:10px; display:inline-flex; align-items:center; gap:6px; }
-.cal-links a:hover { background:#f3f3f3; }
+.cal-links a:hover { background:#1b1b1b; }
 .cal-nav-cta { display:flex; align-items:center; gap:10px; }
 .cal-signin { color:${C.ink}; text-decoration:none; font-size:15.5px; font-weight:600; padding:8px 10px; }
 .cal-burger { display:none; background:none; border:0; cursor:pointer; padding:8px; color:${C.ink}; }
-.cal-mobile { display:none; max-width:1440px; margin:8px auto 0; background:#fff; border:1px solid ${C.line}; border-radius:16px; padding:8px 20px; }
-.cal-mobile a { display:block; padding:13px 0; color:${C.ink}; text-decoration:none; font-weight:500; border-bottom:1px solid #f1f1f1; }
+.cal-mobile { display:none; max-width:1440px; margin:8px auto 0; background:#101010; border:1px solid ${C.line}; border-radius:16px; padding:8px 20px; }
+.cal-mobile a { display:block; padding:13px 0; color:${C.ink}; text-decoration:none; font-weight:500; border-bottom:1px solid #1d1d1d; }
 .cal-mobile a:last-child { border-bottom:0; }
 
 /* buttons */
 .cal-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:46px; padding:0 22px; border-radius:11px; font-size:15.5px; font-weight:600; text-decoration:none; border:1px solid transparent; cursor:pointer; font-family:inherit; transition: background .15s, transform .15s, box-shadow .15s; }
 .cal-btn:hover .cal-arrow { transform:translateX(3px); }
 .cal-arrow { transition:transform .15s; opacity:.85; }
-.cal-btn-dark { background:#242424; color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 1px 2px rgba(0,0,0,.2); }
-.cal-btn-dark:hover { background:#000; }
-.cal-btn-soft { background:#f0f0f0; color:${C.ink}; border-color:#e6e6e6; }
-.cal-btn-soft:hover { background:#e9e9e9; }
-.cal-btn-white { background:#fff; color:${C.ink}; border-color:${C.line}; }
-.cal-btn-white:hover { background:#fafafa; }
+.cal-btn-dark { background:#f4f4f4; color:#0a0a0a; box-shadow:0 1px 2px rgba(0,0,0,.4); }
+.cal-btn-dark:hover { background:#fff; }
+.cal-btn-soft { background:#1a1a1a; color:${C.ink}; border-color:#2a2a2a; }
+.cal-btn-soft:hover { background:#222; }
+.cal-btn-white { background:#101010; color:${C.ink}; border-color:#2a2a2a; }
+.cal-btn-white:hover { background:#181818; }
 .cal-btn-sm { height:42px; padding:0 18px; font-size:15px; border-radius:10px; }
 .cal-btn-wide { width:100%; }
-.cal-root a:focus-visible, .cal-root button:focus-visible, .cal-root summary:focus-visible { outline:2px solid ${C.ink}; outline-offset:2px; border-radius:8px; }
+.cal-root a:focus-visible, .cal-root button:focus-visible, .cal-root summary:focus-visible { outline:2px solid #fff; outline-offset:2px; border-radius:8px; }
 
 /* type */
-.cal-badge-pill { display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:500; color:${C.ink}; padding:6px 14px; border-radius:9999px; border:1px solid ${C.line}; background:#fff; text-decoration:none; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+.cal-badge-pill { display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:500; color:${C.ink}; padding:6px 14px; border-radius:9999px; border:1px solid ${C.line}; background:#101010; text-decoration:none; }
 .cal-h1 { font-size:clamp(40px, 4.5vw, 68px); font-weight:600; letter-spacing:-0.055em; line-height:.98; margin:22px 0 24px; }
 .cal-h2 { font-size:clamp(34px, 4.6vw, 62px); font-weight:600; letter-spacing:-0.055em; line-height:1; margin:18px 0 18px; }
 .cal-lede { font-size:18.5px; line-height:1.6; color:${C.body}; max-width:640px; margin:0 auto; }
@@ -186,22 +188,22 @@ html { scroll-behavior: smooth; }
 .cal-label { font-size:11.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:${C.mute}; }
 
 /* cards */
-.cal-card { background:#fff; border:1px solid ${C.line}; border-radius:20px; }
+.cal-card { background:${C.card}; border:1px solid ${C.line}; border-radius:20px; }
 .cal-hover { transition: box-shadow .2s, transform .2s; }
-.cal-hover:hover { box-shadow:0 14px 34px -14px rgba(0,0,0,.16); transform:translateY(-2px); }
-.cal-num { width:40px; height:34px; border-radius:9px; background:#efefef; display:inline-flex; align-items:center; justify-content:center; font-size:14px; color:${C.body}; }
-.cal-tile { background:#fff; border:1px solid ${C.line}; border-radius:18px; padding:34px 18px 26px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:18px; }
-.cal-tile-ico { position:relative; width:82px; height:82px; border-radius:20px; background:${C.tile}; border:1px solid #ececec; display:flex; align-items:center; justify-content:center; color:#2b2b2b; }
-.cal-tile-ico i { position:absolute; width:4px; height:4px; border-radius:50%; background:#d6d6d6; }
+.cal-hover:hover { box-shadow:0 14px 34px -14px rgba(0,0,0,.7); border-color:#333; transform:translateY(-2px); }
+.cal-num { width:40px; height:34px; border-radius:9px; background:#1b1b1b; display:inline-flex; align-items:center; justify-content:center; font-size:14px; color:${C.body}; }
+.cal-tile { background:${C.card}; border:1px solid ${C.line}; border-radius:18px; padding:34px 18px 26px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:18px; }
+.cal-tile-ico { position:relative; width:82px; height:82px; border-radius:20px; background:${C.tile}; border:1px solid #2a2a2a; display:flex; align-items:center; justify-content:center; color:#e5e5e5; }
+.cal-tile-ico i { position:absolute; width:4px; height:4px; border-radius:50%; background:#3a3a3a; }
 .cal-tile-ico i:nth-child(1){ top:9px; left:9px } .cal-tile-ico i:nth-child(2){ top:9px; right:9px } .cal-tile-ico i:nth-child(3){ bottom:9px; left:9px } .cal-tile-ico i:nth-child(4){ bottom:9px; right:9px }
-.cal-chip { display:inline-block; font-size:13px; padding:5px 12px; border-radius:9999px; background:#f1f1f1; color:${C.body}; }
+.cal-chip { display:inline-block; font-size:13px; padding:5px 12px; border-radius:9999px; background:#1b1b1b; color:${C.body}; }
 .cal-pill-status { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:3px 10px; border-radius:9999px; }
-.cal-seg { display:inline-flex; gap:2px; padding:4px; border-radius:12px; background:#f0f0f0; max-width:100%; overflow-x:auto; }
+.cal-seg { display:inline-flex; gap:2px; padding:4px; border-radius:12px; background:#171717; max-width:100%; overflow-x:auto; }
 .cal-seg button { padding:8px 16px; border:0; border-radius:9px; background:none; cursor:pointer; font:inherit; font-size:14px; font-weight:500; color:${C.body}; white-space:nowrap; }
-.cal-seg button[aria-selected="true"], .cal-seg button[aria-pressed="true"] { background:#fff; color:${C.ink}; box-shadow:0 1px 3px rgba(0,0,0,.1); }
-.cal-term { padding:12px 14px; border-radius:12px; background:#fafafa; border:1px solid #eee; }
+.cal-seg button[aria-selected="true"], .cal-seg button[aria-pressed="true"] { background:#2a2a2a; color:#fff; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+.cal-term { padding:12px 14px; border-radius:12px; background:#151515; border:1px solid ${C.line}; }
 .cal-clip { overflow:hidden; position:relative; }
-.cal-fade::after { content:''; position:absolute; left:0; right:0; bottom:0; height:60px; background:linear-gradient(transparent, #fff); pointer-events:none; }
+.cal-fade::after { content:''; position:absolute; left:0; right:0; bottom:0; height:60px; background:linear-gradient(transparent, #101010); pointer-events:none; }
 
 /* grids */
 .cal-g2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
@@ -289,7 +291,7 @@ const Header: React.FC = () => {
   return (
     <div className="cal-nav">
       <header className="cal-nav-pill">
-        <Link to="/" aria-label="Neural Nexus home" style={{ textDecoration: 'none' }}><Wordmark size={19} tone="light" /></Link>
+        <Link to="/" aria-label="Neural Nexus home" style={{ textDecoration: 'none' }}><Wordmark size={19} /></Link>
         <nav className="cal-links" aria-label="Sections">
           {NAV.map(([l, h]) => <a key={h} href={h}>{l}</a>)}
         </nav>
@@ -318,11 +320,11 @@ const Header: React.FC = () => {
 /* ─── Hero mock: a product card like Cal's booking widget ───────────────── */
 
 const HeroMock: React.FC = () => (
-  <div className="cal-card" style={{ overflow: 'hidden', marginRight: -48, boxShadow: '0 20px 50px -24px rgba(0,0,0,.18)' }}
+  <div className="cal-card" style={{ overflow: 'hidden', marginRight: -48, boxShadow: '0 24px 60px -24px rgba(0,0,0,.8)' }}
     role="group" aria-label="Product preview: ELN on NIFTY 50 with sample data">
     <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.3fr', minWidth: 640 }}>
       <div style={{ padding: 22, borderRight: `1px solid ${C.line}` }}>
-        <WordmarkGlyph size={30} tone="light" />
+        <WordmarkGlyph size={30} />
         <div style={{ fontSize: 13, color: C.mute, margin: '12px 0 2px' }}>Equity-Linked Note</div>
         <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.03em' }}>ELN · NIFTY 50</div>
         <p style={{ fontSize: 13, color: C.body, lineHeight: 1.5, margin: '8px 0 14px' }}>Barrier coupon note. Sample terms, illustrative figures.</p>
@@ -390,7 +392,7 @@ const AuditChain: React.FC = () => {
           const edited = tamper && i === 1;
           const color = broken ? C.red : C.green;
           return (
-            <div key={r.id} style={{ padding: 16, borderRadius: 14, background: '#fafafa', border: `1px solid ${broken ? `${C.red}66` : '#eee'}`, transition: 'border-color .3s' }}>
+            <div key={r.id} style={{ padding: 16, borderRadius: 14, background: C.raised, border: `1px solid ${broken ? `${C.red}66` : C.line}`, transition: 'border-color .3s' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.body }}>{r.id}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color }}>{broken ? (edited ? 'EDITED' : 'CHAIN BROKEN') : 'VALID'}</span>
@@ -465,7 +467,7 @@ const LandingPage: React.FC = () => {
           <div className="cal-in" style={{ display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 15, color: C.body, maxWidth: 180 }}>Products and underlyings supported today</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, flex: 1, justifyContent: 'flex-end' }}>
-              {BUILT_ON.map((b) => <span key={b} className="cal-chip" style={{ background: '#fff', border: `1px solid ${C.line}`, color: C.ink, fontWeight: 500 }}>{b}</span>)}
+              {BUILT_ON.map((b) => <span key={b} className="cal-chip" style={{ background: '#101010', border: `1px solid ${C.line}`, color: C.ink, fontWeight: 500 }}>{b}</span>)}
             </div>
           </div>
         </section>
@@ -478,8 +480,8 @@ const LandingPage: React.FC = () => {
               lede="From payoff mechanics to suitability verdict, every output traces back to the same simulation and rule set." actions />
             <Reveal>
               <div className="cal-card" style={{ overflow: 'hidden' }} role="group" aria-label="Dashboard preview with sample data">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderBottom: `1px solid ${C.line}`, background: '#fafafa' }}>
-                  {[0, 1, 2].map((d) => <span key={d} style={{ width: 10, height: 10, borderRadius: '50%', background: '#e3e3e3' }} />)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderBottom: `1px solid ${C.line}`, background: C.raised }}>
+                  {[0, 1, 2].map((d) => <span key={d} style={{ width: 10, height: 10, borderRadius: '50%', background: '#2a2a2a' }} />)}
                   <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 600 }}>Assessment · ELN — NIFTY 50 · 12 months</span>
                   <span style={{ marginLeft: 'auto', fontSize: 12, color: C.mute }}>Sample data</span>
                 </div>
@@ -510,7 +512,7 @@ const LandingPage: React.FC = () => {
                     </div>
                     <p style={{ fontSize: 12, color: C.mute, margin: '12px 0 0' }}>75% barrier, 10% coupon, terminal-level view. A −20% move sits above the barrier; only the −30% case loses principal.</p>
                   </div>
-                  <div style={{ padding: 24, background: '#fafafa' }}>
+                  <div style={{ padding: 24, background: C.raised }}>
                     <div className="cal-label" style={{ marginBottom: 12 }}>Client profile</div>
                     <dl style={{ margin: 0, display: 'grid', gap: 10, fontSize: 14 }}>
                       {[['Risk appetite', 'Aggressive'], ['Investment horizon', '24 months'], ['Loss tolerance', '25%'], ['Liquid net worth', inr(DEMO.netWorth)], ['Existing exposure', inr(DEMO.existing)]].map(([k, v]) => (
@@ -551,7 +553,7 @@ const LandingPage: React.FC = () => {
                   body: (
                     <div style={{ display: 'grid', gap: 8 }}>
                       {[['Risk appetite', 'Aggressive'], ['Horizon', '24 months'], ['Barrier / coupon', '75% / 10.0%']].map(([k, v]) => (
-                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '9px 12px', borderRadius: 10, background: '#fafafa', border: '1px solid #eee' }}><span style={{ color: C.mute }}>{k}</span><b>{v}</b></div>
+                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '9px 12px', borderRadius: 10, background: C.raised, border: '1px solid ${C.line}' }}><span style={{ color: C.mute }}>{k}</span><b>{v}</b></div>
                       ))}
                     </div>
                   ) },
@@ -559,7 +561,7 @@ const LandingPage: React.FC = () => {
                   body: (
                     <div style={{ display: 'grid', gap: 8 }}>
                       {[['Worst ever', '2007 – 2008', pct(elnReturn(0.4), 1)], ['Sideways', 'calmest period', pct(elnReturn(1), 1)], ['Most recent', 'latest period', pct(elnReturn(1.1), 1)]].map(([a, b, c]) => (
-                        <div key={a} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '9px 12px', borderRadius: 10, background: '#fafafa', border: '1px solid #eee' }}>
+                        <div key={a} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '9px 12px', borderRadius: 10, background: C.raised, border: '1px solid ${C.line}' }}>
                           <span><b>{a}</b> <span style={{ color: C.mute }}>· {b}</span></span><b style={{ color: c.startsWith('−') ? C.red : C.green }}>{c}</b>
                         </div>
                       ))}
@@ -599,7 +601,7 @@ const LandingPage: React.FC = () => {
                   <p style={{ fontSize: 15.5, color: C.body, lineHeight: 1.55, margin: '0 0 20px' }}>Any fail means not suitable, any review means a conversation first, otherwise suitable.</p>
                   <div style={{ display: 'grid', gap: 10 }}>
                     {CHECKS.map(([t, d]) => (
-                      <details key={t} style={{ border: '1px solid #eee', borderRadius: 12, padding: '12px 14px', background: '#fafafa' }}>
+                      <details key={t} style={{ border: '1px solid ${C.line}', borderRadius: 12, padding: '12px 14px', background: C.raised }}>
                         <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 14.5, listStyle: 'none', display: 'flex', justifyContent: 'space-between' }}>{t}<ChevronRight size={16} color={C.mute} /></summary>
                         <p style={{ fontSize: 13.5, color: C.body, lineHeight: 1.55, margin: '8px 0 0' }}>{d}</p>
                       </details>
@@ -614,7 +616,7 @@ const LandingPage: React.FC = () => {
                 <div className="cal-card" style={{ padding: 28, height: '100%' }}>
                   <h3 style={{ fontSize: 21, fontWeight: 600, letterSpacing: '-0.03em', margin: '0 0 6px' }}>Don’t predict one outcome. Stress thousands.</h3>
                   <p style={{ fontSize: 15.5, color: C.body, lineHeight: 1.55, margin: '0 0 18px' }}>A block bootstrap resamples real daily returns in blocks of 10 days, preserving short-term clustering.</p>
-                  <div className="cal-clip" style={{ border: '1px solid #eee', borderRadius: 14, padding: 14, background: '#fafafa' }}>
+                  <div className="cal-clip" style={{ border: '1px solid ${C.line}', borderRadius: 14, padding: 14, background: C.raised }}>
                     <div className="cal-label" style={{ marginBottom: 4 }}>Index level over 12 months · 2,000 paths · 5th–95th</div>
                     <FanSVG height={250} />
                   </div>
@@ -650,7 +652,7 @@ const LandingPage: React.FC = () => {
                 </div>
                 <h3 style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.04em', margin: '16px 0 4px' }}>{prod.name}</h3>
                 <p style={{ fontSize: 14, color: C.mute, margin: '0 0 18px' }}>{prod.subtitle}</p>
-                <div style={{ padding: '14px 16px', borderRadius: 12, background: '#fafafa', border: '1px solid #eee', fontSize: 15, lineHeight: 1.6 }}>
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: C.raised, border: '1px solid ${C.line}', fontSize: 15, lineHeight: 1.6 }}>
                   <span className="cal-label" style={{ display: 'block', marginBottom: 4 }}>Payoff mechanics</span>{prod.mechanic}
                 </div>
               </div>
@@ -701,11 +703,11 @@ const LandingPage: React.FC = () => {
               const s = SAMPLES[(sample + off + SAMPLES.length) % SAMPLES.length];
               const center = off === 0;
               return (
-                <div key={off} className="cal-card" style={{ padding: 30, opacity: center ? 1 : 0.4, minHeight: 300, display: 'flex', flexDirection: 'column', boxShadow: center ? '0 18px 40px -22px rgba(0,0,0,.2)' : undefined }} aria-hidden={!center}>
+                <div key={off} className="cal-card" style={{ padding: 30, opacity: center ? 1 : 0.4, minHeight: 300, display: 'flex', flexDirection: 'column', boxShadow: center ? '0 18px 44px -22px rgba(0,0,0,.9)' : undefined }} aria-hidden={!center}>
                   <StatusPill status={s.status} label={s.label} />
                   <p style={{ fontSize: center ? 21 : 18, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1.35, margin: '18px 0 0' }}>{s.quote}</p>
                   <div style={{ marginTop: 'auto', paddingTop: 22, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <WordmarkGlyph size={36} tone="light" />
+                    <WordmarkGlyph size={36} />
                     <div><div style={{ fontSize: 14, fontWeight: 600 }}>{s.who}</div><div style={{ fontSize: 13, color: C.mute }}>{s.meta}</div></div>
                   </div>
                 </div>
@@ -735,7 +737,7 @@ const LandingPage: React.FC = () => {
                     <span className="cal-chip">{g.tag}</span>
                     <div style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.03em', margin: '10px 0 14px' }}>{g.group}</div>
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-                      {g.nodes.map((n) => <li key={n} style={{ fontSize: 13.5, padding: '8px 10px', borderRadius: 8, background: '#fafafa', border: '1px solid #eee' }}>{n}</li>)}
+                      {g.nodes.map((n) => <li key={n} style={{ fontSize: 13.5, padding: '8px 10px', borderRadius: 8, background: C.raised, border: '1px solid ${C.line}' }}>{n}</li>)}
                     </ul>
                   </div>
                 </Reveal>
@@ -787,7 +789,7 @@ const LandingPage: React.FC = () => {
         <footer style={{ padding: '34px 0' }}>
           <div className="cal-in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <Wordmark size={16} tone="light" />
+              <Wordmark size={16} />
               <span style={{ fontSize: 13, color: C.mute }}>© 2026 · Pricing indicative, suitability rules illustrative pending compliance review</span>
             </div>
             <nav aria-label="Footer" style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
