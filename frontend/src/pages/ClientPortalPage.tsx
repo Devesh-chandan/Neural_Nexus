@@ -38,7 +38,7 @@ import type {
   ProductConfig,
 } from '../types';
 import { Alert, LoadingOverlay, ProductPill, Spinner, StatBox, Disclaimer } from '../components/UIKit';
-import { currencySymbol } from '../lib/format';
+import { currencySymbol, formatMaxGain } from '../lib/format';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -143,7 +143,7 @@ const ClientPortalPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Run the RM-recommended product against this client: Module 3 reasoning + payoff/MC for the what-if.
+  // Run the RM-recommended product against this client: assessment reasoning + payoff/MC for the what-if.
   const productKey = JSON.stringify(product);
   useEffect(() => {
     if (!caseId || !product || !profile) return;
@@ -421,7 +421,7 @@ const ClientPortalPage: React.FC = () => {
                           <Spinner size={14} />
                         ) : metrics ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-                            <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Best case</span><span style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>+{(metrics.max_gain_pct * 100).toFixed(1)}%</span></div>
+                            <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Best case</span><span style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>{formatMaxGain(metrics.max_gain_pct, metrics.max_gain_label)}</span></div>
                             <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Worst case</span><span style={{ color: 'var(--accent-danger)', fontWeight: 600 }}>{(metrics.max_loss_pct * 100).toFixed(1)}%</span></div>
                             {metrics.monte_carlo && (
                               <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Chance of loss</span><span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{(metrics.monte_carlo.p_loss * 100).toFixed(1)}%</span></div>

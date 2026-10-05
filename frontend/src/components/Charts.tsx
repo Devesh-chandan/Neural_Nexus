@@ -23,6 +23,7 @@ import type {
   HistoricalScenario,
 } from '../types';
 import { StatBox } from './UIKit';
+import { formatMaxGain } from '../lib/format';
 
 // ── PayoffChart ────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
   }));
 
   return (
+    <>
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 22, right: 24, left: 0, bottom: 16 }}>
         <defs>
@@ -126,6 +128,11 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
         />
       </AreaChart>
     </ResponsiveContainer>
+    <div className="stat-label" style={{ marginTop: 6, textTransform: 'none' }}>
+      Payoff at maturity versus the final underlying level. For daily-barrier notes, paths that
+      touch the barrier and then recover are not drawn here; they are covered by the historical replay.
+    </div>
+    </>
   );
 };
 
@@ -334,7 +341,7 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({ metrics, skipHea
         <>
           <StatBox
             label="Max Gain"
-            value={`+${(metrics.max_gain_pct * 100).toFixed(1)}%`}
+            value={formatMaxGain(metrics.max_gain_pct, metrics.max_gain_label)}
             color="positive"
             subtext="Total return"
           />
@@ -441,7 +448,7 @@ export const ScenarioTable: React.FC<ScenarioTableProps> = ({ rows, principal })
 );
 
 // ── HistoricalScenarioTable ───────────────────────────────────────────────
-// Real historical replay (module2_simulation_engine): 20 real past market periods,
+// Real historical replay (/api/simulate): 20 real past market periods,
 // dated and narrated, as opposed to the synthetic shocks in ScenarioTable above.
 
 interface HistoricalScenarioTableProps {

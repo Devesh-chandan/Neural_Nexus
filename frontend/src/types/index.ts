@@ -8,6 +8,8 @@ export interface ELNConfig {
   tenor_months: number;
   principal: number;
   currency: string;
+  /** Strike as a fraction of the start price (default 1.0). */
+  strike_pct?: number;
   barrier_pct: number;
   coupon_pa: number;
   coupon_conditional: boolean;
@@ -35,6 +37,8 @@ export interface DCDConfig {
   interest_pa: number;
   base_currency: string;
   alt_currency: string;
+  /** Trade date interest accrues from (calendar days / 365); the backend fills in today. */
+  start_date?: string | null;
 }
 
 export type ProductConfig = ELNConfig | CPNConfig | DCDConfig;
@@ -185,7 +189,7 @@ export interface KycImportResponse {
 
 // ── RM registration & RBAC ──────────────────────────────────────────────────
 
-export type AccessTier = 'junior_rm' | 'senior_advisor' | 'branch_manager';
+export type AccessTier = 'relationship_manager';
 
 export type Jurisdiction = 'IN' | 'US' | 'UK' | 'AE' | 'SG' | 'EU' | 'HK' | 'AU';
 
@@ -434,8 +438,18 @@ export interface PayoffPoint {
   net_return: number;
 }
 
+export interface IssuerCreditInfo {
+  spread_bps: number;
+  recovery_rate: number;
+  default_probability: number;
+  expected_loss_pct: number;
+  label: string;
+}
+
 export interface MetricsBundle {
-  max_gain_pct: number;
+  max_gain_pct: number | null;  // null = unlimited (uncapped CPN)
+  /** Display text for an uncapped gain, e.g. "Uncapped · 80% of any rise". */
+  max_gain_label?: string | null;
   max_loss_pct: number;
   break_even_x: number | null;
   scenario_table: ScenarioRow[];
@@ -447,6 +461,7 @@ export interface MetricsBundle {
   payoff_curve: PayoffPoint[];
   cliff: CliffInfo | null;
   pricing: PricingInfo;
+  issuer_credit?: IssuerCreditInfo | null;
 }
 
 export interface FxQuote {
@@ -530,7 +545,7 @@ export interface ExplanationResult {
   };
 }
 
-// ── Historical simulation (module2_simulation_engine) ─────────────────────
+// ── Historical simulation (/api/simulate) ─────────────────────
 
 export interface HistoricalScenario {
   id: number;
@@ -681,7 +696,7 @@ export interface ApiError {
   detail: string;
 }
 
-// ── Module 3: suitability assessment on Module 2's historical replay (POST /api/assess) ──
+// ── Suitability assessment on the historical replay (POST /api/assess) ──
 
 export type AssessmentStatus = 'SUITABLE' | 'REVIEW_REQUIRED' | 'NOT_SUITABLE';
 export type CheckStatus = 'PASS' | 'REVIEW' | 'FAIL';
@@ -702,6 +717,14 @@ export interface AssessmentChecks {
   concentration_risk: { status: CheckStatus; client_limit_pct: number; product_value_pct: number | null; reason: string };
 }
 
+/** Checks beyond the four core rules (same engine). Informational ones never change the verdict. */
+export interface AdditionalCheck {
+  status: CheckStatus;
+  reason: string;
+  informational: boolean;
+  rule_id: string;
+}
+
 export interface SuitabilityAssessment {
   assessment_id: string;
   client_id: string;
@@ -710,6 +733,7 @@ export interface SuitabilityAssessment {
   timestamp: string;
   overall_status: AssessmentStatus;
   checks: AssessmentChecks;
+  additional_checks?: Record<string, AdditionalCheck>;
   /** RM responses only. */
   compliance_flags?: Record<string, { status: CheckStatus; reason: string }>;
   /** Client responses only (compliance detail is withheld from clients). */

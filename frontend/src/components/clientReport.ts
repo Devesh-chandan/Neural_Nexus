@@ -1,5 +1,5 @@
 /**
- * "Report for Client": a one-to-two page, plain-English summary of a Module 3 assessment,
+ * "Report for Client": a one-to-two page, plain-English summary of a suitability assessment,
  * written for the client (not the RM). No jargon, no compliance-screening detail, one chart.
  *
  * Built as a self-contained A4 HTML page; downloadClientReport() opens the browser's print

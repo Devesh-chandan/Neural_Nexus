@@ -62,7 +62,7 @@ const INITIAL_FORM: RMFormState = {
   institution: '',
   branch_code: '',
   department: '',
-  access_tier: 'junior_rm',
+  access_tier: 'relationship_manager',
   product_types_authorised: [],
 };
 
@@ -72,42 +72,11 @@ const LOCAL_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const TIER_FALLBACK: AccessTierInfo[] = [
   {
-    key: 'junior_rm',
-    label: 'Junior RM',
+    key: 'relationship_manager',
+    label: 'Relationship Manager',
     rank: 1,
     description:
-      'May load a client profile, simulate payoffs and read the suitability outcome. Cannot confirm or finalise a product configuration.',
-    escalate_to: 'Senior Advisor',
-    permissions: ['simulate', 'view_suitability', 'draft_configuration', 'view_client_kyc'],
-    can_finalise: false,
-    finalise_blocked_reason: null,
-    permission_labels: {},
-  },
-  {
-    key: 'senior_advisor',
-    label: 'Senior Advisor',
-    rank: 2,
-    description:
-      'Everything a Junior RM can do, plus confirming and finalising a product configuration for the client and issuing client-facing reports.',
-    escalate_to: 'Branch Manager',
-    permissions: [
-      'simulate',
-      'view_suitability',
-      'draft_configuration',
-      'finalise_configuration',
-      'export_report',
-      'view_client_kyc',
-    ],
-    can_finalise: true,
-    finalise_blocked_reason: null,
-    permission_labels: {},
-  },
-  {
-    key: 'branch_manager',
-    label: 'Branch Manager',
-    rank: 3,
-    description:
-      'Full control: finalisation, suitability-override approval, branch-level reporting and product catalogue management.',
+      'Full access: load client profiles, simulate payoffs, read suitability, finalise product configurations, approve overrides, export reports and view branch reports.',
     escalate_to: null,
     permissions: [
       'simulate',
@@ -621,7 +590,7 @@ const RMRegisterPage: React.FC = () => {
 
                     <div style={{ marginTop: 20 }}>
                       <div className="form-label" style={{ marginBottom: 10 }}>
-                        Access tier <span style={{ color: 'var(--accent-danger)' }}>*</span>
+                        Role <span style={{ color: 'var(--accent-danger)' }}>*</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {tiers.map((t) => (

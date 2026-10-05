@@ -86,7 +86,7 @@ export async function runSuitabilityOnly(params: SuitabilityOnlyParams) {
 }
 
 /**
- * Real historical replay (module2_simulation_engine): the given product played back on
+ * Real historical replay (/api/simulate): the given product played back on
  * 20 real past market periods of matching length, with dated/narrated scenarios. Heavier
  * than /analyze (fetches real market data), so call this on demand, not on every keystroke.
  */
@@ -102,7 +102,7 @@ export async function runHistoricalSimulation(
 }
 
 /**
- * Module 3 suitability assessment: replays the product (Module 2), checks it against the
+ * Suitability assessment: replays the product, checks it against the
  * client's case record with the deterministic rules, and returns client + RM explanations.
  * `clientId` is the case ID of a registered client (e.g. CLT-IN-0001).
  */

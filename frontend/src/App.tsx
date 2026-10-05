@@ -15,8 +15,8 @@ import { useLocation } from 'react-router-dom';
 
 function AppRoutes() {
   const location = useLocation();
-  // Hide navbar on login page
-  const hideNavbar = location.pathname === '/login';
+  // The login page and the landing page carry their own header.
+  const hideNavbar = location.pathname === '/login' || location.pathname === '/';
 
   return (
     <>

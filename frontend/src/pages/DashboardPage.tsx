@@ -37,7 +37,7 @@ import {
 } from '../components/Charts';
 import SuitabilityPanel from '../components/SuitabilityPanel';
 import ExplanationCard from '../components/ExplanationCard';
-import { compactAmount, currencySymbol } from '../lib/format';
+import { compactAmount, currencySymbol, formatMaxGain } from '../lib/format';
 
 type Tab = 'overview' | 'payoff' | 'scenarios' | 'replay' | 'mc' | 'suitability' | 'explanation' | 'audit';
 
@@ -239,7 +239,7 @@ const DashboardPage: React.FC = () => {
               )}
               subtext={(product as { currency: string }).currency}
             />
-            <StatBox label="Max Gain" value={`+${(metrics.max_gain_pct * 100).toFixed(1)}%`} color="positive" />
+            <StatBox label="Max Gain" value={formatMaxGain(metrics.max_gain_pct, metrics.max_gain_label)} color="positive" />
             <StatBox label="Max Loss" value={`${(metrics.max_loss_pct * 100).toFixed(1)}%`} color="negative" />
             <StatBox
               label="FD Baseline"
@@ -250,6 +250,14 @@ const DashboardPage: React.FC = () => {
           {exportError && (
             <Alert variant="error" className="mt-3">
               {exportError}
+            </Alert>
+          )}
+          {metrics.issuer_credit && (
+            <Alert variant="info" className="mt-3">
+              <strong>Issuer credit risk (illustrative):</strong> a generic bank issuer has about{' '}
+              {(metrics.issuer_credit.default_probability * 100).toFixed(1)}% chance of default over this
+              note's life (expected loss {(metrics.issuer_credit.expected_loss_pct * 100).toFixed(2)}% of
+              principal). Principal protection is only as strong as the issuer. {metrics.issuer_credit.label}
             </Alert>
           )}
           {metrics.pricing.flag === 'coupon_above_indicative' && (

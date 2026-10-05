@@ -12,7 +12,7 @@ import type {
 import { Alert, Spinner } from './UIKit';
 import { downloadClientReport, previewClientReport } from './clientReport';
 
-// Module 3 status -> existing verdict-badge / rule-dot colour classes.
+// Assessment status -> existing verdict-badge / rule-dot colour classes.
 const VERDICT_CLASS: Record<AssessmentStatus, string> = {
   SUITABLE: 'SUITABLE',
   REVIEW_REQUIRED: 'CONDITIONALLY_SUITABLE',
@@ -203,6 +203,22 @@ const SuitabilityAssessmentCard: React.FC<Props> = ({ clientId, clientName, rmNa
               );
             })}
           </div>
+
+          {/* Further checks from the same engine: complexity, life stage, affordability, liquidity (decisive); notes (informational) */}
+          {assessment.additional_checks && Object.keys(assessment.additional_checks).length > 0 && (
+            <div style={{ padding: '10px 14px', border: '1px solid var(--hairline-dark)', borderRadius: 'var(--r-md)' }}>
+              <div style={{ ...eyebrow, marginBottom: 6 }}>Further checks</div>
+              {Object.entries(assessment.additional_checks).map(([name, check]) => (
+                <div key={name} className="flex items-start gap-2" style={{ fontSize: 13, color: 'var(--on-dark-mute)', lineHeight: 1.5, marginBottom: 3 }}>
+                  <span className={`rule-dot ${DOT_CLASS[check.status]}`} aria-hidden="true" style={{ marginTop: 6 }} />
+                  <span>
+                    <strong style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{name.replace(/_/g, ' ')}</strong>
+                    {check.informational ? ' (note)' : ''}: {check.reason}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Compliance gates (RM only) */}
           {assessment.compliance_flags && (

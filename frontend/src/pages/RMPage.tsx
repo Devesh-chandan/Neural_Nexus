@@ -65,7 +65,7 @@ import {
 } from '../components/Charts';
 import ExplanationCard, { FormattedClientReasoning, FormattedRMReasoning } from '../components/ExplanationCard';
 import SuitabilityAssessmentCard from '../components/SuitabilityAssessmentCard';
-import { compactAmount, currencySymbol } from '../lib/format';
+import { compactAmount, currencySymbol, formatMaxGain } from '../lib/format';
 
 type ProductType = ProductConfig['product_type'];
 const PRODUCT_TYPES: ProductType[] = ['ELN', 'CPN', 'DCD'];
@@ -188,7 +188,7 @@ const RMPage: React.FC = () => {
   const [fixIt, setFixIt] = useState<FixItResponse | null>(null);
   const [fixLoading, setFixLoading] = useState(false);
 
-  // Real historical replay (module2_simulation_engine) — loaded on demand in the Replay tab
+  // Real historical replay (/api/simulate) — loaded on demand in the Replay tab
   const [historicalResult, setHistoricalResult] = useState<HistoricalSimulationResult | null>(null);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [historicalError, setHistoricalError] = useState<string | null>(null);
@@ -204,7 +204,7 @@ const RMPage: React.FC = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [productCheck, setProductCheck] = useState<{ allowed: boolean; reason: string | null } | null>(null);
 
-  // Module 3 verdict for the selected client and terms (the audited suitability decision)
+  // Assessment verdict for the selected client and terms (the audited suitability decision)
   const [m3Verdict, setM3Verdict] = useState<AssessmentStatus | null>(null);
 
   // Full Screen Modal State
@@ -510,7 +510,7 @@ const RMPage: React.FC = () => {
             />
             <StatBox
               label="Max Gain"
-              value={result ? `+${(result.metrics.max_gain_pct * 100).toFixed(1)}%` : '—'}
+              value={result ? formatMaxGain(result.metrics.max_gain_pct, result.metrics.max_gain_label) : '—'}
               color="positive"
             />
             <StatBox
@@ -901,7 +901,7 @@ const RMPage: React.FC = () => {
                 )}
               </div>
 
-              {/* 4. Module 3: rule-based suitability on Module 2's real historical replay */}
+              {/* 4. Rule-based suitability on the real historical replay */}
               <SuitabilityAssessmentCard
                 clientId={selectedClientId ?? ''}
                 clientName={selectedClient?.client_name ?? ''}

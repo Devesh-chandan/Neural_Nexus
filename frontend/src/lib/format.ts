@@ -16,3 +16,7 @@ export const compactAmount = (value: number, code?: string | null): string => {
 /** "not_specified" -> "Not specified" */
 export const humanize = (s: string): string =>
   s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+
+/** Max gain as shown to users; null means uncapped participation (no fixed upper limit). */
+export const formatMaxGain = (v: number | null | undefined, label?: string | null): string =>
+  v == null ? (label ?? 'Uncapped') : `+${(v * 100).toFixed(1)}%`;
