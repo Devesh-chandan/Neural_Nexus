@@ -1,49 +1,66 @@
 <div align="center">
 
+<img src="frontend/public/logo.png" alt="Neural Nexus logo" width="84" />
+
 # Neural Nexus
 
-### Suitability-aware payoff simulator for structured products
+**Suitability-Aware Payoff Simulator for Structured Products**
 
-Configure an Equity-Linked Note, Capital-Protected Note or Dual Currency Deposit, replay it on real market history,
-check it against a client's profile with deterministic rules, and get a plain-language explanation. All in one workflow.
+Configure an Equity-Linked Note, Capital-Protected Note or Dual Currency Deposit, replay it on **real market history**,
+check it against a client's profile with **deterministic rules**, and get a **plain-language explanation**. One workflow, one audit trail.
 
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-336791?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+[![CI](https://github.com/Devesh-chandan/Neural_Nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/Devesh-chandan/Neural_Nexus/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-237%20backend%20%C2%B7%206%20frontend-brightgreen)
+
+<br />
+
+<img src="docs/images/01-landing.png" alt="Neural Nexus landing page" width="900" />
 
 </div>
 
 > **Decision-support prototype. Not investment advice.** Analysis uses historical data and statistical models; past
 > performance does not predict future results. Suitability must be confirmed by a qualified person.
-> See [Limitations](#known-limitations-and-disclaimers).
+> See [Limitations](#-known-limitations-and-disclaimers).
 
 ---
 
-## Table of contents
+## 📍 Table of Contents
 
-1. [What it does](#what-it-does)
-2. [Products and payoff conventions](#products-and-payoff-conventions)
-3. [Architecture](#architecture)
-4. [How a decision is made](#how-a-decision-is-made)
-5. [Quick start](#quick-start)
-6. [Docker](#docker)
-7. [Configuration](#configuration)
-8. [API reference](#api-reference)
-9. [Security and operations](#security-and-operations)
-10. [Testing and CI](#testing-and-ci)
-11. [Project structure](#project-structure)
-12. [Known limitations and disclaimers](#known-limitations-and-disclaimers)
-13. [Troubleshooting](#troubleshooting)
+| # | Section | Focus area |
+|---|---------|-----------|
+| 1 | [Problem, Impact and Scope](#-problem-impact-and-scope) | Why it exists, impact matrix, what it is and is not for |
+| 2 | [Platform Walkthrough](#-platform-walkthrough) | Screenshots of every major screen |
+| 3 | [Products and Payoff Conventions](#-products-and-payoff-conventions) | ELN, CPN, DCD formulas and shared conventions |
+| 4 | [Architecture and Tech Stack](#-architecture-and-tech-stack) | System diagram, stack table, design rules |
+| 5 | [How a Decision is Made](#-how-a-decision-is-made) | Pipeline, suitability engine, explanations |
+| 6 | [Quickstart](#-quickstart) | Backend, frontend, Supabase, seed data, CLI |
+| 7 | [Ports and Deployment](#-ports-and-deployment) | Local URLs and the Docker stack |
+| 8 | [Configuration](#-configuration) | Environment variables and YAML files |
+| 9 | [API Reference](#-api-reference) | Endpoints and error shape |
+| 10 | [Security and Operations](#-security-and-operations) | Auth, rate limiting, audit chain, LLM safety |
+| 11 | [Testing and CI](#-testing-and-ci) | Commands and what the suite pins down |
+| 12 | [Repository Structure](#-repository-structure) | Directory tree |
+| 13 | [Known Limitations and Disclaimers](#-known-limitations-and-disclaimers) | Modelling and process caveats |
+| 14 | [Troubleshooting](#-troubleshooting) | Symptoms and fixes |
 
 ---
 
-## What it does
+## 💡 Problem, Impact and Scope
 
-Structured products are hard for relationship managers (RMs) to configure and harder for clients to understand. Neural Nexus
-lets an RM:
+### Problem context
+
+Structured products are hard for relationship managers (RMs) to configure and harder for clients to understand. A coupon
+quoted in isolation hides the barrier, the issuer dependence and the worst thing that has actually happened to the underlying.
+Suitability checks are then done by hand, in a different tool, and explained in jargon.
+
+Neural Nexus puts all of it in one place. An RM can:
 
 | Step | Capability |
 |---|---|
@@ -52,22 +69,124 @@ lets an RM:
 | **Replay history** | Replay the exact terms on **20 real past market periods** of the same length, plus rolling-window statistics (probability of loss, CVaR, histogram, crisis presets) and an optional block-bootstrap Monte Carlo. |
 | **Check suitability** | Deterministic rules compare the product with the client's risk appetite, horizon, loss tolerance, concentration, complexity, life stage, affordability, liquidity and compliance gates. |
 | **Explain** | A plain-language explanation for the client and a technical briefing for the RM, generated from computed facts only. |
-| **Recommend & fix** | Rank a grid of candidate products for a client, or suggest term changes that resolve a mismatch. |
+| **Recommend and fix** | Rank a grid of candidate products for a client, or suggest term changes that resolve a mismatch. |
 | **Audit** | Every complete analysis is appended to a SHA-256 hash chain. |
 
-Surfaces:
+### Impact matrix
+
+| Workflow | Typical manual process | Neural Nexus |
+|---|---|---|
+| 📐 **Payoff maths** | Re-implemented per spreadsheet; formulas drift | **One implementation** of each payoff, shared by replay, scenarios, Monte Carlo, recommendations and the API |
+| 🕰️ **Backtesting** | A single hand-picked "good" period | **20 real past periods** per product, always including the worst, best and most recent |
+| ⚖️ **Suitability** | Judgement call, often undocumented | Deterministic, versioned rules; any `FAIL` ⇒ **NOT_SUITABLE**, any `REVIEW` ⇒ **REVIEW_REQUIRED** |
+| 🗣️ **Client explanation** | Jargon-heavy term sheet | Plain-language text where **every number must exist in the computed facts** |
+| 🛡️ **Capital protection** | Described as "safe" | Issuer credit risk shown as an explicit figure; never called risk-free |
+| 🧾 **Audit** | Email trail | **SHA-256 hash chain** of every analysis (tamper-evident) |
+| 📴 **Availability** | Needs a live data terminal | Prices fall back **live → disk cache → bundled seed CSV**, and every response states its source and `as_of` date |
+| 🧪 **Verification** | Untested spreadsheets | **237 backend + 6 frontend tests**, fully offline |
+
+### System scope
+
+- **Best for:** demonstrating and evaluating a suitability-aware structured-product workflow; RM training; reviewing how a
+  verdict was reached.
+- **Not for:** live trading, order booking, issuer quoting, or regulated suitability sign-off.
+- **Surfaces**
 
 | Route | Audience | Purpose |
 |---|---|---|
 | `/` | Anyone | Landing page |
+| `/login`, `/client/register`, `/rm/register` | Anyone | Sign-in and onboarding |
 | `/client`, `/client/profile` | Client | Questionnaire, recommendation and explanation in plain language |
 | `/rm` | Relationship manager | Full configurator, replay, suitability assessment, recommendations |
 | `/dashboard/:runId` | Both | Full analysis view of a saved run |
-| `/login`, `/client/register`, `/rm/register` | Anyone | Sign-in and onboarding |
 
 ---
 
-## Products and payoff conventions
+## 🎬 Platform Walkthrough
+
+> Every screenshot below comes from the running application. The names, balances and cases are **fictitious demo data**, and
+> the figures come from the real simulation, replay and suitability engines.
+
+### Landing and sign-in
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/02-landing-assessment-preview.png" alt="Landing page product section" /><br /><sub><b>Landing.</b> Supported products and underlyings, with a live assessment preview.</sub></td>
+    <td width="50%"><img src="docs/images/03-sign-in.png" alt="Sign-in page" /><br /><sub><b>Sign-in.</b> Separate RM and client portals backed by Supabase Auth.</sub></td>
+  </tr>
+</table>
+
+### Onboarding
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/04-client-onboarding.png" alt="Client onboarding wizard" /><br /><sub><b>Client onboarding.</b> Five-step KYC, financials and suitability questionnaire, or import from a broker.</sub></td>
+    <td width="50%"><img src="docs/images/05-rm-onboarding.png" alt="RM onboarding" /><br /><sub><b>RM onboarding.</b> Institution, branch, access tier and authorised products.</sub></td>
+  </tr>
+</table>
+
+### RM workspace: configure, visualise, replay
+
+<p align="center"><img src="docs/images/07-rm-payoff-graph.png" alt="RM workspace payoff graph with AI rationale" width="900" /></p>
+
+<p align="center"><sub><b>Structuring and Suitability workspace.</b> Product builder on the left, payoff at maturity in the centre, client list and profile on the right, with the client rationale and RM compliance summary below.</sub></p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/08-rm-scenario-table.png" alt="Scenario table" /><br /><sub><b>Scenario table.</b> −30 % … +20 % outcomes, final value and annualised return.</sub></td>
+    <td width="50%"><img src="docs/images/10-rm-monte-carlo.png" alt="Monte Carlo fan chart" /><br /><sub><b>Monte Carlo.</b> Block-bootstrap percentile paths, labelled <i>statistical model-based, not a forecast</i>.</sub></td>
+  </tr>
+</table>
+
+### Historical replay on 20 real market periods
+
+<p align="center"><img src="docs/images/09-rm-historical-replay.png" alt="Historical replay of 20 real market periods" width="520" /></p>
+
+<p align="center"><sub>The exact terms replayed on 20 real periods of the same length: worst ever, best ever, most recent and a spread in between. Barrier hits are flagged per period and the data snapshot is hashed.</sub></p>
+
+### Suitability assessment and explanation
+
+<p align="center"><img src="docs/images/11-rm-suitability-assessment.png" alt="Suitability assessment with per-rule outcomes" width="560" /></p>
+
+<p align="center"><sub><b>One decision path.</b> Core rules, further checks, compliance gates, then the client-facing and RM-facing explanations. Here a loss-tolerance <code>FAIL</code> makes the verdict <b>NOT SUITABLE</b>, however attractive the coupon.</sub></p>
+
+### All three products
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/12-rm-capital-protected-note.png" alt="Capital-Protected Note" /><br /><sub><b>CPN.</b> Principal protection plus participation; the verdict reads <i>conditionally suitable</i> because a review item remains.</sub></td>
+    <td width="50%"><img src="docs/images/13-rm-dual-currency-deposit.png" alt="Dual Currency Deposit" /><br /><sub><b>DCD.</b> Interest plus conversion risk at the strike; strike re-struck at the same offset from spot in every window.</sub></td>
+  </tr>
+</table>
+
+### Saved run dashboard
+
+<p align="center"><img src="docs/images/14-analysis-dashboard.png" alt="Analysis dashboard for a saved run" width="900" /></p>
+
+<p align="center"><sub><b>Analysis Dashboard.</b> Overview, payoff, scenarios, replay, Monte Carlo, suitability, explanation and audit tabs for any saved run, with JSON and HTML export and the issuer-credit disclosure.</sub></p>
+
+### Client portal
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/15-client-portal.png" alt="Client portal" /><br /><sub><b>Client portal.</b> The recommended product in plain language, a what-if corpus projection and a redacted rationale (no compliance screening or RM briefing).</sub></td>
+    <td width="50%"><img src="docs/images/16-client-profile.png" alt="Client profile editor" /><br /><sub><b>My profile.</b> Clients keep risk appetite, horizon and loss tolerance up to date.</sub></td>
+  </tr>
+</table>
+
+<details>
+<summary><b>More screens</b></summary>
+
+<br />
+
+<p align="center"><img src="docs/images/06-rm-workbench-idle.png" alt="RM workspace before a client is selected" width="760" /></p>
+<p align="center"><sub>The RM workspace before a client is selected. The full gallery is in <a href="docs/README.md">docs/</a>.</sub></p>
+
+</details>
+
+---
+
+## 🧱 Products and Payoff Conventions
 
 There is **exactly one implementation of each payoff formula** (`backend/app/simulation/sim_engine/payoffs.py`). The replay,
 scenario table, payoff curve, Monte Carlo, recommendations and the API adapters all call it.
@@ -90,7 +209,9 @@ Conventions (identical everywhere):
 
 ---
 
-## Architecture
+## 🧩 Architecture and Tech Stack
+
+### System workflow
 
 ```mermaid
 flowchart LR
@@ -114,7 +235,18 @@ flowchart LR
     EXP -.->|"facts only"| LLM[("Groq / Anthropic / OpenAI")]
 ```
 
-**Design rules**
+### Tech stack
+
+| Component | Technology | Role |
+|-----------|-----------|------|
+| **Backend** | Python 3.13, FastAPI 0.115, Starlette, Pydantic 2, Uvicorn | REST API, validation, middleware (auth, rate limiting) |
+| **Quant and data** | NumPy, pandas, SciPy, yfinance, PyYAML | Payoffs, rolling windows, block-bootstrap Monte Carlo, Black-Scholes / Garman-Kohlhagen sanity pricing, price feed |
+| **Frontend** | React 19, TypeScript 6, Vite 8, Recharts 3, React Router 7 | RM workspace, client portal, dashboards, charts |
+| **Auth and storage** | Supabase Auth, PostgreSQL (psycopg2) | Sign-in, role profiles, cases, runs, audit chain |
+| **Explanations** | Groq, Anthropic or OpenAI (optional) | Narrates computed facts only; deterministic template fallback |
+| **DevOps and QA** | Docker, nginx, GitHub Actions, pytest, Vitest, oxlint | Containers, CI, tests, linting |
+
+### Design rules
 
 - **One source of truth for each concern.** One set of payoff formulas, one set of historical windows, one price source, one
   suitability decision path and one explainer. `/api/analyze` and `/api/assess` return identical checks for the same client and
@@ -127,7 +259,7 @@ flowchart LR
 
 ---
 
-## How a decision is made
+## 🧠 How a Decision is Made
 
 ```
 configure product ─► validate terms ─► fetch prices (one source)
@@ -165,10 +297,14 @@ Clients receive a **redacted view**: no compliance-screening results, no KYC-com
 
 ---
 
-## Quick start
+## 🚀 Quickstart
 
-**Prerequisites:** Python 3.11+ (tested on 3.13), Node 20+ (tested on 22), a PostgreSQL database and a Supabase project
-(local via the [Supabase CLI](https://supabase.com/docs/guides/cli), or hosted).
+### Prerequisites
+
+- Python 3.11+ (tested on 3.13)
+- Node 20+ (tested on 22)
+- A PostgreSQL database and a Supabase project (local via the [Supabase CLI](https://supabase.com/docs/guides/cli), or hosted)
+- Optional: Docker Desktop, and an LLM key (Groq, Anthropic or OpenAI) for model-written explanations
 
 ### 1. Backend
 
@@ -219,7 +355,21 @@ python -m scripts.run_assessment_batch --sim path/to/simulation_output.json     
 
 ---
 
-## Docker
+## 🔌 Ports and Deployment
+
+### Environment endpoints
+
+| Environment | Component | URL / Port | Notes |
+|-------------|-----------|-----------|-------|
+| **Local dev** | Frontend (Vite) | <http://localhost:5173> | Proxies `/api` to the backend |
+| **Local dev** | FastAPI backend | <http://localhost:8000> | REST API |
+| **Local dev** | Swagger UI | <http://localhost:8000/docs> | Interactive OpenAPI docs |
+| **Local dev** | Health check | <http://localhost:8000/health> | Liveness, outside `/api` |
+| **Docker** | App (nginx + SPA) | <http://localhost:8080> | nginx serves the SPA and proxies `/api` |
+| **Docker** | Backend | <http://localhost:8000> | Also published for a local `npm run dev` |
+| **External** | PostgreSQL and Auth | Supabase (hosted or local CLI) | Cases, runs, audit chain, accounts |
+
+### Docker
 
 ```bash
 cp .env.example backend/.env       # fill in
@@ -235,7 +385,7 @@ docker compose --env-file frontend/.env.local up --build
 
 ---
 
-## Configuration
+## 🔧 Configuration
 
 ### Environment variables (`backend/.env`; template in [`.env.example`](.env.example))
 
@@ -264,7 +414,7 @@ Frontend (`frontend/.env.local`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 
 
 ---
 
-## API reference
+## 📖 API Reference
 
 All routes are under `/api` and require `Authorization: Bearer <Supabase access token>`, except the public ones marked ◯.
 
@@ -279,7 +429,7 @@ All routes are under `/api` and require `Authorization: Bearer <Supabase access 
 | **Market** | `GET /underlyings` ◯ | Supported underlyings |
 | | `GET /market/history` ◯ | Price history with source and `as_of` |
 | | `GET /product-defaults/{type}` ◯ | Defaults and bounds for a product type |
-| **Cases & runs** | `GET/POST /cases`, `GET /cases/{id}` | Client cases |
+| **Cases and runs** | `GET/POST /cases`, `GET /cases/{id}` | Client cases |
 | | `PUT /cases/{id}/profile`, `PUT /cases/{id}/product-config` | Update answers; finalise a recommended configuration |
 | | `GET /runs/{id}`, `GET /runs/{id}/export` | A saved run; JSON or HTML export |
 | **Audit** | `GET /audit/{run_id}`, `GET /audit/verify-chain` | Audit record; hash-chain verification (RM only) |
@@ -294,7 +444,7 @@ requests `401`, over-limit requests `429` with a `Retry-After` header.
 
 ---
 
-## Security and operations
+## 🔐 Security and Operations
 
 | Concern | Implementation |
 |---|---|
@@ -309,7 +459,7 @@ requests `401`, over-limit requests `429` with a `Retry-After` header.
 
 ---
 
-## Testing and CI
+## 🧪 Testing and CI
 
 ```bash
 # Backend: 237 tests, fully offline (in-memory stores, mocked Supabase, synthetic prices). No database needed.
@@ -330,10 +480,10 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests, frontend lin
 
 ---
 
-## Project structure
+## 📁 Repository Structure
 
 ```
-.
+Neural_Nexus/
 ├── backend/
 │   ├── app/
 │   │   ├── api/            HTTP routes (analyze, assess, simulate, recommend, cases, audit, registration, market …)
@@ -360,13 +510,16 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests, frontend lin
 │   ├── src/api/ · lib/ · hooks/ · types/
 │   ├── src/__tests__/      vitest suites
 │   └── Dockerfile · nginx.conf
+├── docs/
+│   ├── README.md           screenshot gallery with captions
+│   └── images/             application screenshots used by this README
 ├── supabase/               config.toml and the user_profiles migration
 └── docker-compose.yml · .env.example · .github/workflows/ci.yml
 ```
 
 ---
 
-## Known limitations and disclaimers
+## 🚨 Known Limitations and Disclaimers
 
 **Modelling**
 
@@ -390,7 +543,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests, frontend lin
 
 ---
 
-## Troubleshooting
+## 🩺 Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
@@ -401,3 +554,12 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests, frontend lin
 | Explanations always say “Deterministic Template” | No LLM configured (`LLM_PROVIDER=none`), or the provider rejected the key / model (check `LLM_MODEL`; LLM calls are disabled until restart after a 401 / 403 / 404). |
 | `MARKET_DATA_UNAVAILABLE` in the CLI | The underlying is not in `config/underlyings.yaml`, or no price source is reachable; add a `data/sim/prices/<NAME>.csv` to override. |
 | DCD analysis returns 422 about the strike | The strike must be within 0.5×–2× of the current spot (check the quote unit). |
+| Port 8000 is already in use | Another service owns it (Docker Desktop and other dev servers often do). Run `uvicorn ... --port 8010` and point the Vite proxy in `frontend/vite.config.ts` at it. |
+
+---
+
+<div align="center">
+
+**Neural Nexus** · decision support for structured products · not investment advice
+
+</div>
