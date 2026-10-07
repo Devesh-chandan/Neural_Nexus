@@ -135,7 +135,7 @@ def analyze(req: AnalyzeRequest, request: Request) -> Dict[str, Any]:
     save_run(
         run_id=run_id,
         case_id=req.case_id,
-        product_json=config.__dict__,
+        product_json=config.model_dump(mode="json"),  # type: ignore[attr-defined]
         metrics_json=metrics.model_dump(),
         suitability_json=suitability.model_dump() if suitability else None,
         explanation_json=explanation,
@@ -148,7 +148,7 @@ def analyze(req: AnalyzeRequest, request: Request) -> Dict[str, Any]:
     if suitability and explanation:
         audit_payload = {
             "run_id": run_id,
-            "product": config.__dict__,
+            "product": config.model_dump(mode="json"),  # type: ignore[attr-defined]
             "profile": profile.model_dump() if profile else None,
             "metrics_digest": {
                 "max_gain_pct": metrics.max_gain_pct,

@@ -16,6 +16,7 @@ Screens from the running application, in the order a user meets them. Back to th
 6. [Other products](#6-other-products)
 7. [Run dashboard](#7-run-dashboard)
 8. [Client portal](#8-client-portal)
+9. [Full-screen rationale](#9-full-screen-rationale)
 
 ---
 
@@ -25,6 +26,11 @@ Screens from the running application, in the order a user meets them. Back to th
 |---|---|
 | ![Landing page](images/01-landing.png) | ![Landing page, product section](images/02-landing-assessment-preview.png) |
 | **`/`** Landing page | **`/`** Supported products and underlyings, with a sample assessment |
+
+![Landing page, how it works](images/17-landing-how-it-works.png)
+
+**`/`** How it works: three steps from client profile to an audited recommendation. The section headers carry no sign-in or
+register buttons; those stay in the navbar and the hero.
 
 ![Sign-in page](images/03-sign-in.png)
 
@@ -79,7 +85,7 @@ sees next to the RM briefing. Any `FAIL` gives **NOT SUITABLE**, any `REVIEW` gi
 | | |
 |---|---|
 | ![Capital-Protected Note](images/12-rm-capital-protected-note.png) | ![Dual Currency Deposit](images/13-rm-dual-currency-deposit.png) |
-| **CPN** Principal protection plus participation | **DCD** Interest plus conversion risk at the strike |
+| **CPN** Principal protection plus participation. Every rule passes for this client, so the verdict is suitable. | **DCD** Interest plus conversion risk at the strike. A review item makes the verdict conditionally suitable. |
 
 ## 7. Run dashboard
 
@@ -99,6 +105,18 @@ deposit, and a redacted rationale. Clients never see compliance screening result
 
 **`/client/profile`** Clients keep their risk appetite, horizon, loss tolerance and portfolio details up to date. Changes are
 visible to their relationship manager.
+
+## 9. Full-screen rationale
+
+![RM full-screen AI rationale](images/18-rm-ai-rationale-fullscreen.png)
+
+**`/rm`** The full-screen rationale for the RM: the client-facing explanation beside the RM technical and compliance rationale,
+with verdict, suitability score, risk metrics and the rules that triggered.
+
+![Client full-screen rationale](images/19-client-portal-rationale-fullscreen.png)
+
+**`/client`** The client's own version of the same decision: four plain-language checks (risk comfort, time horizon, loss
+tolerance, concentration), each comparing what the client told us with what the product needs.
 
 ---
 

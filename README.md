@@ -48,7 +48,6 @@ check it against a client's profile with **deterministic rules**, and get a **pl
 | 11 | [Testing and CI](#-testing-and-ci) | Commands and what the suite pins down |
 | 12 | [Repository Structure](#-repository-structure) | Directory tree |
 | 13 | [Known Limitations and Disclaimers](#-known-limitations-and-disclaimers) | Modelling and process caveats |
-| 14 | [Troubleshooting](#-troubleshooting) | Symptoms and fixes |
 
 ---
 
@@ -111,10 +110,13 @@ Neural Nexus puts all of it in one place. An RM can:
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/02-landing-assessment-preview.png" alt="Landing page product section" /><br /><sub><b>Landing.</b> Supported products and underlyings, with a live assessment preview.</sub></td>
-    <td width="50%"><img src="docs/images/03-sign-in.png" alt="Sign-in page" /><br /><sub><b>Sign-in.</b> Separate RM and client portals backed by Supabase Auth.</sub></td>
+    <td width="50%"><img src="docs/images/02-landing-assessment-preview.png" alt="Landing page product section" /><br /><sub><b>Product.</b> Supported products and underlyings, with a live assessment preview.</sub></td>
+    <td width="50%"><img src="docs/images/17-landing-how-it-works.png" alt="Landing page how-it-works section" /><br /><sub><b>How it works.</b> Three steps from client profile to an audited recommendation. Sign-in and registration live in the navbar and the hero only.</sub></td>
   </tr>
 </table>
+
+<p align="center"><img src="docs/images/03-sign-in.png" alt="Sign-in page" width="640" /></p>
+<p align="center"><sub><b>Sign-in.</b> Separate RM and client portals backed by Supabase Auth.</sub></p>
 
 ### Onboarding
 
@@ -154,8 +156,17 @@ Neural Nexus puts all of it in one place. An RM can:
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/12-rm-capital-protected-note.png" alt="Capital-Protected Note" /><br /><sub><b>CPN.</b> Principal protection plus participation; the verdict reads <i>conditionally suitable</i> because a review item remains.</sub></td>
-    <td width="50%"><img src="docs/images/13-rm-dual-currency-deposit.png" alt="Dual Currency Deposit" /><br /><sub><b>DCD.</b> Interest plus conversion risk at the strike; strike re-struck at the same offset from spot in every window.</sub></td>
+    <td width="50%"><img src="docs/images/12-rm-capital-protected-note.png" alt="Capital-Protected Note" /><br /><sub><b>CPN.</b> Principal protection plus participation; for this client every rule passes and the verdict is <i>suitable</i>.</sub></td>
+    <td width="50%"><img src="docs/images/13-rm-dual-currency-deposit.png" alt="Dual Currency Deposit" /><br /><sub><b>DCD.</b> Interest plus conversion risk at the strike, re-struck at the same offset from spot in every window; a review item makes the verdict <i>conditionally suitable</i>.</sub></td>
+  </tr>
+</table>
+
+### Full-screen rationale
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/18-rm-ai-rationale-fullscreen.png" alt="RM full-screen AI rationale" /><br /><sub><b>RM view.</b> Client-facing explanation beside the RM technical and compliance rationale: verdict, score, risk metrics and the rules that triggered.</sub></td>
+    <td width="50%"><img src="docs/images/19-client-portal-rationale-fullscreen.png" alt="Client full-screen rationale" /><br /><sub><b>Client view.</b> The same decision as four plain-language checks, each comparing what the client told us with what the product needs.</sub></td>
   </tr>
 </table>
 
@@ -254,6 +265,9 @@ flowchart LR
 - **Deterministic first, LLM last.** Payoffs, replay results and suitability are computed in code. The LLM only narrates facts.
 - **Config-driven.** Product bounds, stress shocks, rates, issuer credit, suitability thresholds and the underlying whitelist
   live in YAML, not in code.
+- **Layout that cannot break.** The RM workspace and client portal use equal-height grids (the portal is one 1 : 2 : 1 / 2 : 2
+  grid), every card and flex/grid child can shrink, long names and figures wrap or truncate, and wide tables scroll inside their
+  own wrapper, so no data can push the page sideways (guard rules at the end of `frontend/src/index.css`).
 - **Offline-capable.** Prices fall back live → disk cache (12 h) → bundled seed CSVs, and every response states which source
   was used and the `as_of` date.
 
@@ -543,7 +557,8 @@ Neural_Nexus/
 
 ---
 
+<div align="center">
 
-Decision support for structured products · not investment advice
+**Neural Nexus** · decision support for structured products · not investment advice
 
 </div>
