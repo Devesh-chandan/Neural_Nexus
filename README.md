@@ -543,23 +543,7 @@ Neural_Nexus/
 
 ---
 
-## 🩺 Troubleshooting
 
-| Symptom | Cause and fix |
-|---|---|
-| `docker compose up` crashes with `ModuleNotFoundError` | Stale image. Rebuild: `docker compose --env-file frontend/.env.local up --build`. |
-| Login does nothing in Docker | The frontend was built with blank `VITE_SUPABASE_*`. Pass `--env-file frontend/.env.local` and rebuild. |
-| `DATABASE_URL is not set` | Set it in `backend/.env`. Tests do not need it. |
-| `429 RATE_LIMITED` | Over the per-minute limit; wait for `Retry-After`, or raise `RATE_LIMIT_SCALE` for load testing. |
-| Explanations always say “Deterministic Template” | No LLM configured (`LLM_PROVIDER=none`), or the provider rejected the key / model (check `LLM_MODEL`; LLM calls are disabled until restart after a 401 / 403 / 404). |
-| `MARKET_DATA_UNAVAILABLE` in the CLI | The underlying is not in `config/underlyings.yaml`, or no price source is reachable; add a `data/sim/prices/<NAME>.csv` to override. |
-| DCD analysis returns 422 about the strike | The strike must be within 0.5×–2× of the current spot (check the quote unit). |
-| Port 8000 is already in use | Another service owns it (Docker Desktop and other dev servers often do). Run `uvicorn ... --port 8010` and point the Vite proxy in `frontend/vite.config.ts` at it. |
-
----
-
-<div align="center">
-
-**Neural Nexus** · decision support for structured products · not investment advice
+Decision support for structured products · not investment advice
 
 </div>
