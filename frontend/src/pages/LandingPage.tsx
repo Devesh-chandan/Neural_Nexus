@@ -256,18 +256,12 @@ const Pill: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({ 
   <span className="cal-badge-pill">{icon}{children}</span>
 );
 
-const SectionHead: React.FC<{ icon: React.ReactNode; badge: string; title: React.ReactNode; lede?: string; actions?: boolean }> = ({ icon, badge, title, lede, actions }) => (
+const SectionHead: React.FC<{ icon: React.ReactNode; badge: string; title: React.ReactNode; lede?: string }> = ({ icon, badge, title, lede }) => (
   <Reveal>
     <div className="cal-center" style={{ maxWidth: 820, margin: '0 auto 56px' }}>
       <Pill icon={icon}>{badge}</Pill>
       <h2 className="cal-h2">{title}</h2>
       {lede && <p className="cal-lede">{lede}</p>}
-      {actions && (
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 26 }}>
-          <Link to="/login" className="cal-btn cal-btn-dark cal-btn-sm">Sign in <ChevronRight size={15} className="cal-arrow" /></Link>
-          <Link to="/client/register" className="cal-btn cal-btn-white cal-btn-sm">Register as a client <ChevronRight size={15} className="cal-arrow" /></Link>
-        </div>
-      )}
     </div>
   </Reveal>
 );
@@ -477,7 +471,7 @@ const LandingPage: React.FC = () => {
         <section id="product" className="cal-sec">
           <div className="cal-in">
             <SectionHead icon={<Layers size={14} />} badge="The product" title="One decision. Every layer visible."
-              lede="From payoff mechanics to suitability verdict, every output traces back to the same simulation and rule set." actions />
+              lede="From payoff mechanics to suitability verdict, every output traces back to the same simulation and rule set." />
             <Reveal>
               <div className="cal-card" style={{ overflow: 'hidden' }} role="group" aria-label="Dashboard preview with sample data">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderBottom: `1px solid ${C.line}`, background: C.raised }}>
@@ -546,7 +540,7 @@ const LandingPage: React.FC = () => {
         <section id="how-it-works" className="cal-sec">
           <div className="cal-in">
             <SectionHead icon={<Workflow size={14} />} badge="How it works" title="With us, suitability review is straightforward"
-              lede="From client profile to an audited recommendation in three steps." actions />
+              lede="From client profile to an audited recommendation in three steps." />
             <div ref={stepsRef} className="cal-g3">
               {[
                 { n: '01', title: 'Set up the case', desc: 'Capture the client’s risk appetite, horizon, loss tolerance and net worth, then configure the product inside validated bounds.', icon: <UserCheck size={18} />,

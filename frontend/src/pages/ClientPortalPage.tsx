@@ -251,7 +251,7 @@ const ClientPortalPage: React.FC = () => {
   const metrics = analysis?.metrics;
   const clientName = profile?.client_name || user?.client_name || 'Client';
 
-  const whatIfChart = (height: number) =>
+  const whatIfChart = (height: number | '100%') =>
     whatIf && (
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={whatIf.rows} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
@@ -334,46 +334,43 @@ const ClientPortalPage: React.FC = () => {
         <div className="page-container page-content animate-in" style={{ maxWidth: 1440, paddingTop: 16 }}>
           {error && <Alert variant="error" className="mb-4">{error}</Alert>}
 
-          <div className="rm-3col-layout">
-            {/* ── LEFT: profile + LLM reasoning ─────────────────────────── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-              <div className="rm-financial-card">
-                <div style={sectionLabel} className="flex items-center gap-1">
-                  <UserCog size={13} /> My Profile
-                </div>
-                {profile && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-                    {[
-                      ['Risk', profile.risk_appetite],
-                      ['Horizon', `${profile.horizon_months} months`],
-                      ['Max loss', `${profile.loss_tolerance_pct}%`],
-                      ['Assets', inr(profile.investable_assets)],
-                      ['Experience', profile.experience],
-                      ['Planned amount', profile.investment_amount != null ? inr(profile.investment_amount) : 'Not stated'],
-                      ...(profile.annual_income ? [['Annual income', inr(profile.annual_income)]] : []),
-                      ...(profile.employment_status ? [['Employment', profile.employment_status]] : []),
-                      ['KYC', profile.kyc_verified ? 'Verified' : 'Pending'],
-                    ].map(([l, v]) => (
-                      <div key={l} className="flex justify-between" style={{ fontSize: 13, borderBottom: '1px solid var(--hairline-dark)', paddingBottom: 8 }}>
-                        <span style={{ color: 'var(--stone)' }}>{l}</span>
-                        <span style={{ color: 'var(--on-dark)', fontWeight: 600, textTransform: 'capitalize' }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <Link to="/client/profile" className="btn btn-primary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
-                  Update my details
-                </Link>
-                <p style={{ fontSize: 11, color: 'var(--stone)', margin: '10px 0 0' }}>
-                  Changes are saved and visible to your relationship manager.
-                </p>
+          {/* One 4-track grid: top row 1 : 2 : 1, bottom row 2 : 2 (see .cp-grid). */}
+          <div className="cp-grid">
+            {/* ── Profile ───────────────────────────────────────────────── */}
+            <div className="rm-financial-card">
+              <div style={sectionLabel} className="flex items-center gap-1">
+                <UserCog size={13} /> My Profile
               </div>
-
+              {profile && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                  {[
+                    ['Risk', profile.risk_appetite],
+                    ['Horizon', `${profile.horizon_months} months`],
+                    ['Max loss', `${profile.loss_tolerance_pct}%`],
+                    ['Assets', inr(profile.investable_assets)],
+                    ['Experience', profile.experience],
+                    ['Planned amount', profile.investment_amount != null ? inr(profile.investment_amount) : 'Not stated'],
+                    ...(profile.annual_income ? [['Annual income', inr(profile.annual_income)]] : []),
+                    ...(profile.employment_status ? [['Employment', profile.employment_status]] : []),
+                    ['KYC', profile.kyc_verified ? 'Verified' : 'Pending'],
+                  ].map(([l, v]) => (
+                    <div key={l} className="kv-row" style={{ fontSize: 13, borderBottom: '1px solid var(--hairline-dark)', paddingBottom: 8 }}>
+                      <span style={{ color: 'var(--stone)' }}>{l}</span>
+                      <span style={{ color: 'var(--on-dark)', fontWeight: 600, textTransform: 'capitalize' }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Link to="/client/profile" className="btn btn-primary btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}>
+                Update my details
+              </Link>
+              <p style={{ fontSize: 11, color: 'var(--stone)', margin: '10px 0 0' }}>
+                Changes are saved and visible to your relationship manager.
+              </p>
             </div>
 
-            {/* ── CENTER: recommended product ───────────────────────────── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-              <div className="rm-green-card" style={{ cursor: 'default' }}>
+            {/* ── Recommended product ───────────────────────────────────── */}
+            <div className="rm-green-card cp-span-2" style={{ cursor: 'default' }}>
                 <div className="rm-green-header">
                   <div className="flex items-center gap-2">
                     <span className="rm-green-badge">Recommended for you</span>
@@ -389,7 +386,7 @@ const ClientPortalPage: React.FC = () => {
                   />
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+                    <div className="cp-trio">
                       <div className="card" style={subCard}>
                         <div style={sectionLabel}>1 · What it is</div>
                         <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--on-dark)', marginBottom: 6 }}>
@@ -408,7 +405,7 @@ const ClientPortalPage: React.FC = () => {
                             { label: 'Tenor', value: `${product.tenor_months} months` },
                             ...keyTerms(product),
                           ].map((t) => (
-                            <div key={t.label} className="flex justify-between">
+                            <div key={t.label} className="kv-row">
                               <span style={{ color: 'var(--stone)' }}>{t.label}</span>
                               <span style={{ color: 'var(--on-dark)', fontWeight: 600, textTransform: 'capitalize' }}>{t.value}</span>
                             </div>
@@ -421,12 +418,12 @@ const ClientPortalPage: React.FC = () => {
                           <Spinner size={14} />
                         ) : metrics ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-                            <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Best case</span><span style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>{formatMaxGain(metrics.max_gain_pct, metrics.max_gain_label)}</span></div>
-                            <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Worst case</span><span style={{ color: 'var(--accent-danger)', fontWeight: 600 }}>{(metrics.max_loss_pct * 100).toFixed(1)}%</span></div>
+                            <div className="kv-row"><span style={{ color: 'var(--stone)' }}>Best case</span><span style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>{formatMaxGain(metrics.max_gain_pct, metrics.max_gain_label)}</span></div>
+                            <div className="kv-row"><span style={{ color: 'var(--stone)' }}>Worst case</span><span style={{ color: 'var(--accent-danger)', fontWeight: 600 }}>{(metrics.max_loss_pct * 100).toFixed(1)}%</span></div>
                             {metrics.monte_carlo && (
-                              <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Chance of loss</span><span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{(metrics.monte_carlo.p_loss * 100).toFixed(1)}%</span></div>
+                              <div className="kv-row"><span style={{ color: 'var(--stone)' }}>Chance of loss</span><span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>{(metrics.monte_carlo.p_loss * 100).toFixed(1)}%</span></div>
                             )}
-                            <div className="flex justify-between"><span style={{ color: 'var(--stone)' }}>Fixed deposit</span><span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>+{(metrics.fd_baseline.annualised_return * 100).toFixed(1)}% p.a.</span></div>
+                            <div className="kv-row"><span style={{ color: 'var(--stone)' }}>Fixed deposit</span><span style={{ color: 'var(--on-dark)', fontWeight: 600 }}>+{(metrics.fd_baseline.annualised_return * 100).toFixed(1)}% p.a.</span></div>
                           </div>
                         ) : (
                           <span style={{ fontSize: 12, color: 'var(--stone)' }}>Not available</span>
@@ -436,12 +433,10 @@ const ClientPortalPage: React.FC = () => {
                     {assessment && <Disclaimer text={assessment.disclaimer} />}
                   </div>
                 )}
-              </div>
             </div>
 
-            {/* ── RIGHT: corpus + what-if ───────────────────────────────── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-              <div className="rm-purple-card" style={{ cursor: 'default' }}>
+            {/* ── Corpus ────────────────────────────────────────────────── */}
+            <div className="rm-purple-card" style={{ cursor: 'default' }}>
                 <div className="rm-purple-header">
                   <span className="rm-purple-badge flex items-center gap-1">
                     <PieIcon size={11} /> My Corpus
@@ -488,60 +483,54 @@ const ClientPortalPage: React.FC = () => {
                     )}
                   </>
                 )}
-              </div>
-
             </div>
-          </div>
 
-          {/* ── 50 / 50: What-if beside AI rationale ───────────────────── */}
-          <div className="cp-split">
-            <div style={{ minWidth: 0 }}>
-              <div className="rm-green-card" style={{ cursor: 'default' }}>
-                <div className="rm-green-header">
-                  <span className="rm-green-badge flex items-center gap-1">
-                    <TrendingUp size={11} /> What-if
-                  </span>
-                  {whatIf && (
-                    <button className="btn btn-outline-dark btn-sm" style={{ height: 30, padding: '2px 10px', fontSize: 12 }} onClick={() => setFullScreen('whatif')}>
-                      <Maximize2 size={13} /> Full Screen
-                    </button>
-                  )}
-                </div>
-                {whatIf ? (
-                  <>
-                    <p style={{ fontSize: 12, color: 'var(--on-dark-mute)', margin: '0 0 8px' }}>
-                      Projected total corpus if you follow the recommendation, compared with a fixed deposit.
-                    </p>
-                    {whatIfChart(400)}
-                  </>
-                ) : insightLoading ? (
-                  <div className="text-center py-4"><Spinner size={16} label="Simulating…" /></div>
-                ) : (
-                  <EmptyState icon={<BarChart3 size={36} />} title="No projection yet" body="The what-if graph appears once a product is recommended." />
+            {/* ── What-if (left half of the bottom row) ─────────────────── */}
+            <div className="rm-green-card cp-span-2" style={{ cursor: 'default' }}>
+              <div className="rm-green-header">
+                <span className="rm-green-badge flex items-center gap-1">
+                  <TrendingUp size={11} /> What-if
+                </span>
+                {whatIf && (
+                  <button className="btn btn-outline-dark btn-sm" style={{ height: 30, padding: '2px 10px', fontSize: 12 }} onClick={() => setFullScreen('whatif')}>
+                    <Maximize2 size={13} /> Full Screen
+                  </button>
                 )}
               </div>
+              {whatIf ? (
+                <>
+                  <p style={{ fontSize: 12, color: 'var(--on-dark-mute)', margin: '0 0 8px' }}>
+                    Projected total corpus if you follow the recommendation, compared with a fixed deposit.
+                  </p>
+                  <div className="cp-chart">{whatIfChart('100%')}</div>
+                </>
+              ) : insightLoading ? (
+                <div className="text-center py-4"><Spinner size={16} label="Simulating…" /></div>
+              ) : (
+                <EmptyState icon={<BarChart3 size={36} />} title="No projection yet" body="The what-if graph appears once a product is recommended." />
+              )}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div className="rm-purple-card" style={{ cursor: 'default' }}>
-                <div className="rm-purple-header">
-                  <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-                    <span className="rm-purple-badge flex items-center gap-1">
-                      <Sparkles size={11} /> AI Rationale
+
+            {/* ── AI rationale (right half of the bottom row) ───────────── */}
+            <div className="rm-purple-card cp-span-2" style={{ cursor: 'default' }}>
+              <div className="rm-purple-header">
+                <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
+                  <span className="rm-purple-badge flex items-center gap-1">
+                    <Sparkles size={11} /> AI Rationale
+                  </span>
+                  {assessment && (
+                    <span className={`verdict-badge ${VERDICT_CLASS[assessment.assessment.overall_status]}`} role="status">
+                      {VERDICT_LABEL[assessment.assessment.overall_status]}
                     </span>
-                    {assessment && (
-                      <span className={`verdict-badge ${VERDICT_CLASS[assessment.assessment.overall_status]}`} role="status">
-                        {VERDICT_LABEL[assessment.assessment.overall_status]}
-                      </span>
-                    )}
-                  </div>
-                  {clientExpl && (
-                    <button className="btn btn-outline-dark btn-sm" style={{ height: 30, padding: '2px 10px', fontSize: 12 }} onClick={() => setFullScreen('reasoning')}>
-                      <Maximize2 size={13} /> Full Screen
-                    </button>
                   )}
                 </div>
-                <div style={{ maxHeight: 560, overflowY: 'auto', paddingRight: 4 }}>{renderReasoning(false)}</div>
+                {clientExpl && (
+                  <button className="btn btn-outline-dark btn-sm" style={{ height: 30, padding: '2px 10px', fontSize: 12 }} onClick={() => setFullScreen('reasoning')}>
+                    <Maximize2 size={13} /> Full Screen
+                  </button>
+                )}
               </div>
+              <div style={{ maxHeight: 560, overflowY: 'auto', paddingRight: 4 }}>{renderReasoning(false)}</div>
             </div>
           </div>
         </div>
@@ -608,7 +597,7 @@ const LimitBars: React.FC<{ limit: number; value: number | null; unit: string; s
   const max = Math.max(limit, value ?? 0, 1) * 1.15;
   const row = (label: string, v: number | null, color: string) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
-      <div style={{ width: 92, color: 'var(--on-dark-mute)' }}>{label}</div>
+      <div style={{ width: 124, flexShrink: 0, color: 'var(--on-dark-mute)' }}>{label}</div>
       <div style={{ flex: 1, height: 14, background: 'rgba(255,255,255,0.06)', borderRadius: 7, overflow: 'hidden' }}>
         {v != null && <div style={{ width: `${Math.min((v / max) * 100, 100)}%`, height: '100%', background: color, borderRadius: 7, transition: 'width .6s' }} />}
       </div>
@@ -706,7 +695,7 @@ const ReasoningVisual: React.FC<{ assessment: AssessmentResponse; headline: stri
       </div>
 
       {/* Four checks as visual cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+      <div className="cp-checks">
         {keys.map((k) => {
           const c = checks[k];
           return (
@@ -737,7 +726,7 @@ const ReasoningVisual: React.FC<{ assessment: AssessmentResponse; headline: stri
 };
 
 const EmptyState: React.FC<{ icon: React.ReactNode; title: string; body: string }> = ({ icon, title, body }) => (
-  <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--stone)' }}>
+  <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--stone)', margin: 'auto 0' }}>
     <div style={{ opacity: 0.3, display: 'flex', justifyContent: 'center', marginBottom: 10 }}>{icon}</div>
     <div style={{ fontSize: 15, color: 'var(--on-dark)', fontWeight: 500 }}>{title}</div>
     <div style={{ fontSize: 12.5, marginTop: 4 }}>{body}</div>

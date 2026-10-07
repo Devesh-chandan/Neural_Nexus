@@ -944,17 +944,7 @@ const RMPage: React.FC = () => {
               </div>
 
               {/* Registered Clients List */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  maxHeight: 320,
-                  overflowY: 'auto',
-                  paddingRight: 4,
-                  marginBottom: 16,
-                }}
-              >
+              <div className="rm-client-list">
                 {loadingClients && <div className="text-center py-4"><Spinner size={14} label="Loading clients..." /></div>}
                 {!loadingClients && filteredClients.map((client) => {
                   const isSelected = client.case_id === selectedClientId;
@@ -964,20 +954,20 @@ const RMPage: React.FC = () => {
                       className={`client-item-card ${isSelected ? 'selected' : ''}`}
                       onClick={() => handleSelectClient(client)}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span style={{ fontWeight: 600, fontSize: 13, color: isSelected ? '#fff' : 'var(--on-dark-mute)' }}>
+                      <div className="flex items-center justify-between mb-1" style={{ gap: 8 }}>
+                        <span className="ci-ellipsis" title={client.client_name} style={{ fontWeight: 600, fontSize: 13, color: isSelected ? '#fff' : 'var(--on-dark-mute)' }}>
                           {client.client_name}
                         </span>
-                        <span className="mono" style={{ fontSize: 10, color: 'var(--stone)' }}>
+                        <span className="mono" style={{ fontSize: 10, color: 'var(--stone)', flexShrink: 0 }}>
                           {client.case_id}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between" style={{ fontSize: 11 }}>
-                        <span style={{ color: 'var(--stone)', textTransform: 'capitalize' }}>
+                      <div className="flex items-center justify-between" style={{ fontSize: 11, gap: 8 }}>
+                        <span className="ci-ellipsis" style={{ color: 'var(--stone)', textTransform: 'capitalize' }}>
                           Risk: <strong style={{ color: 'var(--on-dark-mute)' }}>{client.profile.risk_appetite}</strong>
                         </span>
-                        <span className="mono" style={{ color: '#fff' }}>
+                        <span className="mono" style={{ color: '#fff', flexShrink: 0 }}>
                           {compactAmount(client.profile.liquid_net_worth ?? client.profile.investable_assets, 'INR')} net worth
                         </span>
                       </div>
@@ -1342,7 +1332,7 @@ const ProfileSummary: React.FC<{ profile: ClientProfile }> = ({ profile }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between" style={{ fontSize: 12 }}>
+        <div key={label} className="kv-row" style={{ fontSize: 12 }}>
           <span style={{ color: 'var(--stone)' }}>{label}</span>
           <span style={{ color: 'var(--on-dark)', fontWeight: 600, textTransform: 'capitalize' }}>{value}</span>
         </div>

@@ -1664,14 +1664,19 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-lg);
 }
 
 .grid-3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-lg);
+}
+
+.grid-2 > *,
+.grid-3 > * {
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
@@ -1918,14 +1923,23 @@ input[type="range"]::-webkit-slider-thumb:hover {
 /* ── RM Workspace 3-Column Formatting & Design System Cards ────────────────── */
 .rm-3col-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) 340px;
+  grid-template-columns: 330px minmax(0, 1fr) 330px;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
+}
+
+/* Every column stretches to the tallest one; a lone card in a column fills it so the bottoms line up. */
+.rm-3col-layout > * {
+  min-width: 0;
+}
+
+.rm-3col-layout > div > .rm-financial-card:only-child {
+  flex: 1 1 auto;
 }
 
 @media (max-width: 1280px) {
   .rm-3col-layout {
-    grid-template-columns: 300px minmax(0, 1fr) 310px;
+    grid-template-columns: 300px minmax(0, 1fr) 300px;
     gap: 16px;
   }
 }
@@ -2482,15 +2496,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .rationale-col-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 44px;
   padding: 12px 18px;
   border-bottom: 1px solid var(--hairline-dark);
   background: var(--surface-deep);
 }
 
 .rationale-eyebrow {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -2499,6 +2516,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .rationale-who {
+  min-width: 0;
   font-size: 12px;
   color: var(--on-dark-mute);
   overflow: hidden;
@@ -2580,7 +2598,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .rz-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: 12px;
   padding: 12px 0;
 }
@@ -2612,18 +2630,44 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .rz-kv > div {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
   font-size: 12px;
 }
 
+/* A long value (e.g. a figure with a caveat) takes the whole row instead of squeezing its label. */
+.rz-kv > .rz-kv-wide {
+  grid-column: 1 / -1;
+}
+
 .rz-kv dt {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--stone);
 }
 
+/* Figures keep their natural width; only a single over-long word is ever broken. */
 .rz-kv dd {
+  flex: 0 0 auto;
+  max-width: 65%;
   margin: 0;
+  text-align: right;
+  overflow-wrap: break-word;
   color: var(--on-dark);
+}
+
+.rz-kv-wide dd {
+  max-width: 55%;
+}
+
+.rz-kv-note {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--stone);
 }
 
 .rz-rules {
@@ -2698,20 +2742,168 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
 }
 
-/* Client portal: What-if and AI rationale share the full width 50/50 */
-.cp-split {
+/* Client portal: one 4-track grid. Top row is 1 : 2 : 1, bottom row is 2 : 2, so the outer edges line up
+   and every card in a row is the same height. */
+.cp-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
   align-items: stretch;
-  margin-top: 20px;
 }
-.cp-split > div > .rm-green-card,
-.cp-split > div > .rm-purple-card {
-  height: 100%;
+.cp-grid > .rm-financial-card,
+.cp-grid > .rm-green-card,
+.cp-grid > .rm-purple-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
-@media (max-width: 1080px) {
-  .cp-split {
+.cp-span-2 {
+  grid-column: span 2;
+}
+.cp-trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.cp-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.cp-chart {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 400px;
+}
+.cp-chart > * {
+  position: absolute;
+  inset: 0;
+}
+@media (max-width: 1280px) {
+  .cp-grid {
+    gap: 16px;
+  }
+}
+@media (max-width: 1280px) {
+  .cp-trio {
     grid-template-columns: 1fr;
   }
+}
+@media (max-width: 760px) {
+  .cp-checks {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1080px) {
+  .cp-grid {
+    grid-template-columns: 1fr;
+  }
+  .cp-span-2 {
+    grid-column: auto;
+  }
+}
+
+
+/* ── Label / value rows (profile summaries, key terms) ─────────────────────── */
+.kv-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.kv-row > :first-child {
+  flex: 0 0 auto;
+  max-width: 55%;
+  overflow-wrap: break-word;
+}
+.kv-row > :last-child {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* ── RM client list: whole cards only, scrollbar tucked into the card padding so the
+   list and the profile card below share the same edges ───────────────────────── */
+.rm-client-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 296px; /* 4 cards x 68px + 3 gaps */
+  overflow-y: auto;
+  margin: 0 -12px 16px 0;
+  padding-right: 12px;
+}
+.client-item-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 0 0 68px;
+  height: 68px;
+  min-width: 0;
+}
+.client-item-card > * {
+  min-width: 0;
+}
+.client-item-card .ci-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Overflow guard ─────────────────────────────────────────────────────────
+   Nothing the data can produce (long names, long figures, wide tables, narrow
+   viewports) may push the page sideways or spill out of its card. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+svg {
+  flex-shrink: 0;
+}
+.card,
+.card-light,
+.card-featured,
+.rm-financial-card,
+.rm-green-card,
+.rm-purple-card,
+.rm-magenta-card,
+.rm-nav-bar,
+.stat-box,
+.alert,
+.rm-fullscreen-dialog,
+.rz-sections {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.flex > span,
+.flex > div,
+.stat-box > *,
+.rm-fullscreen-dialog > * {
+  min-width: 0;
+}
+.stat-value,
+.stat-label,
+.rz-stat-value {
+  overflow-wrap: anywhere;
+}
+.rm-fullscreen-overlay {
+  overflow-x: hidden;
+}
+.form-input,
+.form-select,
+.form-textarea {
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+.data-table {
+  overflow-wrap: normal;
 }

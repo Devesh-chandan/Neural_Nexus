@@ -134,12 +134,20 @@ export const FormattedRMReasoning: React.FC<{ text: string }> = ({ text }) => {
         <div className="rz-section">
           <h5 className="rz-title">Risk metrics</h5>
           <dl className="rz-kv">
-            {metrics.map((m, i) => (
-              <div key={i}>
-                <dt>{m.label}</dt>
-                <dd className="mono">{m.value}</dd>
-              </div>
-            ))}
+            {metrics.map((m, i) => {
+              // "10.0% (model-based, not issuer quote)" → figure on the row, caveat underneath
+              const note = /^(.*?)\s*(\([^)]*\))$/.exec(m.value);
+              const figure = note ? note[1] : m.value;
+              return (
+                <div key={i} className={m.label.length > 28 || m.value.length > 18 ? 'rz-kv-wide' : undefined}>
+                  <dt>{m.label}</dt>
+                  <dd className="mono">
+                    {figure}
+                    {note && <small className="rz-kv-note">{note[2]}</small>}
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
         </div>
       )}
