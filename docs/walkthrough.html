@@ -1,0 +1,647 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Nexus Walkthrough</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a dark "screen" stage on the left with a camera that zooms into the screenshots,
+   a caption panel and chapter list on the right; stacks to one column on phones. */
+:root {
+  --bg: #f2f3f8;
+  --surface: #ffffff;
+  --surface-2: #e9ebf5;
+  --ink: #0f1220;
+  --muted: #565c76;
+  --line: #d8dbea;
+  --accent: #4b50d9;
+  --accent-ink: #ffffff;
+  --accent-text: #3a3fc2;
+  --stage: #06070a;
+  --stage-line: #1d2030;
+  --ring: #a9aeff;
+  --tag-bg: #5a60ee;
+  --tag-ink: #ffffff;
+  --dim: #000000;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0c11; --surface: #14161e; --surface-2: #1c1f2b; --ink: #eceef7; --muted: #9aa0b8;
+    --line: #272a38; --accent: #5a60ee; --accent-ink: #ffffff; --accent-text: #a3a8ff; --stage-line: #272a38;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0c11; --surface: #14161e; --surface-2: #1c1f2b; --ink: #eceef7; --muted: #9aa0b8;
+  --line: #272a38; --accent: #5a60ee; --accent-ink: #ffffff; --accent-text: #a3a8ff; --stage-line: #272a38;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+button, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+
+.shell { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 24px 40px; min-height: 100%; background: var(--bg); }
+.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; margin-bottom: 18px; }
+.top h1 { margin: 0; font: 700 clamp(22px, 3vw, 30px)/1.1 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
+.top h1 span { color: var(--muted); font-weight: 600; }
+.top p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+.player { min-width: 0; display: grid; gap: 12px; }
+
+.stage { position: relative; aspect-ratio: 16 / 10; max-width: 100%; overflow: hidden; border-radius: 14px; background: var(--stage); border: 1px solid var(--stage-line);
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 0); background-size: 22px 22px; }
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; opacity: 0; visibility: hidden; z-index: 1;
+  transition: transform 1.15s cubic-bezier(.65,.02,.22,1), opacity .5s ease, visibility 0s linear .5s; will-change: transform; }
+.world.active { opacity: 1; visibility: visible; z-index: 2; transition: transform 1.15s cubic-bezier(.65,.02,.22,1), opacity .5s ease, visibility 0s; }
+.world.nt, .world.nt.active { transition: none; }
+.world img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; box-shadow: 0 0 0 1px rgba(255,255,255,.07); }
+.world svg.fx { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.world .dim { opacity: 0; transition: opacity .5s ease; }
+.world .rings { opacity: 0; transition: opacity .15s ease; }
+.world.lit .dim { opacity: .64; }
+.world.lit .rings { opacity: 1; transition: opacity .45s ease .1s; }
+.ring-glow { fill: none; stroke: var(--ring); opacity: .28; }
+.ring-line { fill: none; stroke: var(--ring); }
+.tag { position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s ease; padding-bottom: 6px; padding-top: 6px; }
+.tag.up { transform-origin: 0 100%; transform: translateY(-100%) scale(var(--inv, 1)); }
+.tag.down { transform-origin: 0 0; transform: scale(var(--inv, 1)); }
+.tag span { display: inline-block; background: var(--tag-bg); color: var(--tag-ink); font: 600 13px/1 var(--font-body); padding: 6px 10px; border-radius: 7px; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.world.lit .tag { opacity: 1; transition: opacity .45s ease .25s; }
+.cursor { position: absolute; left: 0; top: 0; width: 24px; height: 24px; transform-origin: 0 0; transform: scale(var(--inv, 1)); opacity: 0; pointer-events: none;
+  transition: left 1s cubic-bezier(.5,0,.2,1), top 1s cubic-bezier(.5,0,.2,1), opacity .3s ease; z-index: 3; }
+.cursor.on { opacity: 1; }
+.cursor.snap { transition: opacity .3s ease; }
+.cursor svg { display: block; width: 24px; height: 24px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+.cursor::after { content: ""; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; opacity: 0; transform: scale(.3); }
+.cursor.click::after { animation: ripple .7s ease-out; }
+@keyframes ripple { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.6); } }
+
+.pill { position: absolute; left: 12px; top: 12px; z-index: 5; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); padding: 6px 11px; border-radius: 999px;
+  background: rgba(10,11,16,.78); border: 1px solid rgba(255,255,255,.12); color: #e9ebf5; font: 500 12px/1 var(--font-mono); backdrop-filter: blur(6px); }
+.pill b { font-weight: 500; color: #fff; }
+.pill i { font-style: normal; color: #a9aeff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-body); font-weight: 600; font-size: 12px; }
+.start { position: absolute; z-index: 6; left: 50%; bottom: 16px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; border: 0; border-radius: 999px;
+  padding: 12px 22px 12px 16px; background: var(--accent); color: var(--accent-ink); font: 600 15px/1 var(--font-body); box-shadow: 0 8px 28px rgba(0,0,0,.5); transition: transform .15s ease, background .15s; }
+.start:hover { transform: translateX(-50%) translateY(-1px); }
+.start svg { width: 20px; height: 20px; }
+.start[hidden] { display: none; }
+
+.controls { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.btns { display: flex; align-items: center; gap: 6px; }
+.ib { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); transition: background .15s, border-color .15s; }
+.ib:hover { border-color: var(--accent-text); }
+.ib svg { width: 18px; height: 18px; fill: currentColor; }
+.ib.play { width: 46px; height: 46px; background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.ib.play svg { width: 20px; height: 20px; }
+.ib:disabled { opacity: .4; cursor: default; }
+.track { position: relative; flex: 1 1 200px; min-width: 120px; height: 28px; cursor: pointer; touch-action: none; }
+.track::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; height: 6px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); }
+.fill { position: absolute; left: 0; top: 11px; height: 6px; width: 0; border-radius: 6px; background: var(--accent); }
+.tick { position: absolute; top: 8px; width: 2px; height: 12px; background: var(--surface); border-radius: 1px; }
+.knob { position: absolute; top: 7px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--accent-text); box-shadow: 0 0 0 3px var(--surface); }
+.opts { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.opts select { height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); padding: 0 8px; }
+.opts .ib { width: 34px; height: 34px; border-radius: 8px; }
+.hint { margin: 0; color: var(--muted); font-size: 13px; }
+.hint kbd { font: 500 12px var(--font-mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+
+.side { min-width: 0; display: grid; gap: 14px; }
+.caption { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 20px 22px; }
+.eyebrow { margin: 0 0 10px; font: 500 12px/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent-text); }
+.caption h2 { margin: 0 0 10px; font: 700 24px/1.15 var(--font-display); letter-spacing: -0.015em; text-wrap: balance; }
+.caption p.body { margin: 0; color: var(--ink); font-size: 16px; line-height: 1.55; max-width: 65ch; }
+.caption.swap > * { animation: rise .35s ease both; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.chapters { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; display: grid; gap: 2px; }
+.chapters h3 { margin: 6px 10px 6px; font: 500 12px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ch { border-radius: 10px; }
+.ch > button { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: transparent; padding: 9px 10px; border-radius: 10px; font-weight: 600; }
+.ch > button:hover { background: var(--surface-2); }
+.ch .n { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--line); font: 500 12px var(--font-mono); }
+.ch .c { margin-left: auto; color: var(--muted); font: 500 12px var(--font-mono); }
+.ch.active > button { background: var(--surface-2); }
+.ch.active .n { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.ch ol { display: none; margin: 2px 0 6px 44px; padding: 0 6px 0 0; list-style: none; }
+.ch.active ol { display: grid; gap: 1px; }
+.ch ol button { width: 100%; text-align: left; border: 0; background: transparent; padding: 5px 8px; border-radius: 7px; font-size: 14px; color: var(--muted); }
+.ch ol button:hover { color: var(--ink); background: var(--surface-2); }
+.ch ol button.cur { color: var(--ink); font-weight: 600; background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+
+.shell:fullscreen { overflow: auto; padding-block: 20px; }
+
+@media (max-width: 960px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .opts { margin-left: 0; }
+}
+@media (max-width: 520px) {
+  .shell { padding-inline: 16px; }
+  .caption { padding: 16px; }
+  .caption h2 { font-size: 21px; }
+  .caption p.body { font-size: 15px; }
+  .controls { gap: 8px; }
+  .track { order: 3; flex-basis: 100%; }
+  .hint { display: none; }
+  .tag span { font-size: 12px; padding: 5px 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .world, .world.active, .cursor, .world .dim, .world .rings, .tag { transition: none !important; }
+  .caption.swap > * { animation: none; }
+  .cursor.click::after { animation: none; }
+}
+</style>
+
+<div class="shell" id="shell">
+  <header class="top">
+    <h1>Neural Nexus <span>walkthrough</span></h1>
+    <p id="meta">Loading steps</p>
+  </header>
+
+  <div class="main">
+    <section class="player" aria-label="Walkthrough player">
+      <div class="stage" id="stage">
+        <div id="worlds"></div>
+        <div class="pill" aria-hidden="true"><b id="pillN">01 / 01</b><i id="pillC"></i></div>
+        <button class="start" id="start" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+          <span id="startLabel">Play walkthrough</span>
+        </button>
+      </div>
+
+      <div class="controls">
+        <div class="btns">
+          <button class="ib" id="prev" type="button" aria-label="Previous step" title="Previous step (Left arrow)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5.5v13a1 1 0 0 1-1.55.83L9 13.7a1 1 0 0 1 0-1.66l9.45-5.7A1 1 0 0 1 20 5.5z"/></svg></button>
+          <button class="ib play" id="play" type="button" aria-label="Play" title="Play or pause (Space)"></button>
+          <button class="ib" id="next" type="button" aria-label="Next step" title="Next step (Right arrow)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5.5v13a1 1 0 0 0 1.55.83L15 13.7a1 1 0 0 0 0-1.66L5.55 6.34A1 1 0 0 0 4 5.5z"/></svg></button>
+        </div>
+        <div class="track" id="track" role="slider" tabindex="0" aria-label="Walkthrough progress" aria-valuemin="1" aria-valuemax="1" aria-valuenow="1">
+          <div class="fill" id="fill"></div>
+          <div class="knob" id="knob"></div>
+        </div>
+        <div class="opts">
+          <label class="sr" for="speed" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Playback speed</label>
+          <select id="speed" aria-label="Playback speed">
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
+          <button class="ib" id="fs" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg></button>
+        </div>
+      </div>
+      <p class="hint"><kbd>Space</kbd> play or pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change step &nbsp; Click the bar to jump. All names and figures in the screenshots are demo data.</p>
+    </section>
+
+    <aside class="side">
+      <article class="caption" id="caption" aria-live="off">
+        <p class="eyebrow" id="capEyebrow"></p>
+        <h2 id="capTitle"></h2>
+        <p class="body" id="capBody"></p>
+      </article>
+      <nav class="chapters" id="chapters" aria-label="Chapters"><h3>Chapters</h3></nav>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var IMG = {
+    landing: { f: "images/01-landing.png", w: 1440, h: 900 },
+    preview: { f: "images/02-landing-assessment-preview.png", w: 1440, h: 900 },
+    signin:  { f: "images/03-sign-in.png", w: 1440, h: 900 },
+    client:  { f: "images/04-client-onboarding.png", w: 1440, h: 900 },
+    rmob:    { f: "images/05-rm-onboarding.png", w: 1440, h: 900 },
+    idle:    { f: "images/06-rm-workbench-idle.png", w: 1440, h: 1355 },
+    build:   { f: "images/07-rm-payoff-graph.png", w: 1440, h: 1737 },
+    scen:    { f: "images/08-rm-scenario-table.png", w: 692, h: 547 },
+    replay:  { f: "images/09-rm-historical-replay.png", w: 692, h: 1848 },
+    mc:      { f: "images/10-rm-monte-carlo.png", w: 1440, h: 1628 },
+    suit:    { f: "images/11-rm-suitability-assessment.png", w: 692, h: 1284 },
+    cpn:     { f: "images/12-rm-capital-protected-note.png", w: 1440, h: 1742 },
+    dcd:     { f: "images/13-rm-dual-currency-deposit.png", w: 1440, h: 1737 },
+    dash:    { f: "images/14-analysis-dashboard.png", w: 1440, h: 2433, k: 1440 / 1184 },
+    portal:  { f: "images/15-client-portal.png", w: 1440, h: 1394 },
+    profile: { f: "images/16-client-profile.png", w: 1440, h: 1477 },
+    how:     { f: "images/17-landing-how-it-works.png", w: 1440, h: 900 },
+    rmfs:    { f: "images/18-rm-ai-rationale-fullscreen.png", w: 1440, h: 900 },
+    clfs:    { f: "images/19-client-portal-rationale-fullscreen.png", w: 1440, h: 900 }
+  };
+
+  // Step: [image, focus rect, highlight rects, title, text, pointer]. Rects are [x, y, w, h(, label)] in screenshot pixels.
+  var CH = [
+    { t: "Meet Neural Nexus", s: [
+      ["landing", [0, 0, 1440, 900], [], "One workflow, from product to verdict",
+        "Neural Nexus helps a relationship manager (RM) set up a structured product, test it on real market history, check it against a client's profile and explain the result in plain language."],
+      ["landing", [740, 270, 700, 370], [[755, 283, 663, 342, "Sample assessment"]], "A sample assessment on the home page",
+        "The card shows an Equity-Linked Note on NIFTY 50: its payoff at maturity, the worst case (-50%) and a verdict badge. Every real analysis ends with this same trio."],
+      ["landing", [0, 735, 1440, 140], [[70, 768, 330, 64], [513, 768, 330, 64], [955, 768, 330, 64]], "Three promises, in numbers",
+        "20 real past periods are replayed for every product. 9 fixed suitability checks decide the verdict. Every analysis is saved to a SHA-256 hash chain, so the audit trail shows any tampering."],
+      ["landing", [40, 550, 700, 170], [[70, 581, 600, 46, "RMs sign in"], [70, 639, 600, 46, "Clients register"]], "Two ways in",
+        "Relationship managers sign in to their workspace. Clients register to see recommendations made for them.", [370, 604]],
+      ["preview", [100, 0, 1240, 150], [[406, 36, 890, 82]], "What you can model",
+        "Three products: Equity-Linked Note (ELN), Capital-Protected Note (CPN) and Dual Currency Deposit (DCD). Underlyings include NIFTY 50, Bank Nifty, large Indian stocks, the S&P 500, Apple and four currency pairs."],
+      ["preview", [144, 550, 1152, 350], [[169, 612, 520, 262, "Payoff chart"], [835, 610, 460, 290, "Client profile and checks"]], "Payoff and profile side by side",
+        "The sample pairs the payoff chart with a client's risk appetite, investment horizon, loss tolerance and net worth, then lists the checks that were run."],
+      ["how", [100, 400, 460, 450], [[144, 426, 371, 398, "Step 1"]], "Set up the case",
+        "Capture the client's risk appetite, horizon, loss tolerance and net worth. Then configure the product inside validated bounds."],
+      ["how", [490, 400, 460, 450], [[535, 426, 370, 398, "Step 2"]], "Replay real history",
+        "See the payoff, then replay 20 real past periods and 2,000 bootstrap paths to find the worst case."],
+      ["how", [880, 400, 460, 450], [[925, 426, 371, 398, "Step 3"]], "Get a verdict you can defend",
+        "Fixed rules return one verdict with a plain-English reason and a hash-chained audit record. Here the case needs review, because concentration is above the pass limit for an aggressive client."]
+    ]},
+    { t: "Create an account", s: [
+      ["signin", [230, 170, 980, 570], [[715, 314, 450, 50, "Pick your portal"], [715, 583, 450, 50, "Sign in"]], "Sign in to the right portal",
+        "RMs and clients have separate portals. Choose one, enter your email and password, and sign in. Accounts are handled by Supabase Auth. New here? The register link is underneath.", [1062, 340]],
+      ["client", [144, 360, 1152, 340], [[144, 384, 1152, 46, "Five steps"], [176, 575, 744, 97, "Choose a route"]], "Clients register in five steps",
+        "How to register, Identity, Financials, Suitability and Review. You can type your details, or import KYC and holdings from a broker such as Kite, Zerodha, Groww or Cred and then confirm them."],
+      ["client", [940, 430, 380, 470], [[976, 460, 320, 440, "Your profile so far"]], "Your profile builds as you go",
+        "The panel on the right fills in with each answer: age, net worth, investable amount, risk appetite, horizon and the maximum loss you can accept."],
+      ["rmob", [144, 360, 1152, 340], [[144, 384, 1152, 46, "Four steps"], [176, 575, 744, 125, "Audit key"]], "RMs register with a verifiable identity",
+        "An RM needs an institutional email, a regulatory registration number and a branch. Your full legal name and employee ID are the audit key for every action you take."],
+      ["rmob", [940, 430, 380, 470], [[976, 460, 320, 290, "Effective clearance"]], "Your access tier sets what you can do",
+        "Effective clearance shows your tier, jurisdiction, regulator and whether you may finalise recommendations. The permissions below list what you can do, such as simulating payoffs and viewing suitability."]
+    ]},
+    { t: "Build a product", s: [
+      ["idle", [0, 60, 1440, 1295], [[24, 400, 330, 798, "Product builder"], [374, 400, 692, 798, "Results"], [1086, 400, 330, 798, "Clients"]], "The RM workspace",
+        "Structuring and Suitability has three zones. Build the product on the left, read the results in the middle and pick the client on the right. The strip on top summarises the product you are building."],
+      ["idle", [1040, 380, 400, 640], [[1107, 522, 288, 40, "Search"], [1107, 574, 288, 298]], "Pick a client",
+        "The list holds 100 client records. Search by name, case ID or risk level, then select someone. Their recorded profile loads below, so the suitability check uses their real answers.", [1250, 542]],
+      ["idle", [24, 400, 330, 420], [[45, 447, 288, 85, "Structure"], [45, 546, 288, 205, "Underlying"]], "Choose the product and what it tracks",
+        "Pick ELN, CPN or DCD, then the underlying, such as the Nifty 50 index. The small chart shows its price history and volatility (13.3% a year here).", [100, 501]],
+      ["idle", [24, 760, 330, 360], [[45, 764, 288, 230, "Terms"], [45, 1037, 288, 48, "Run"]], "Set the terms and run",
+        "Drag the sliders for tenor, barrier and coupon, and type the principal. Terms are checked against configurable bounds. Keep Monte Carlo ticked, then press Run Full Analysis.", [189, 1061]]
+    ]},
+    { t: "Read the results", s: [
+      ["build", [0, 240, 1440, 260], [[24, 262, 1392, 112]], "Key figures at a glance",
+        "Product, tenor and principal sit beside the maximum gain (+10.0%), the maximum loss (90.0%) and the fixed-deposit baseline (+7.0% a year) for comparison."],
+      ["build", [374, 474, 692, 470], [[397, 560, 646, 360, "Payoff at maturity"]], "Payoff at maturity",
+        "The horizontal axis is where the underlying ends up. Above the 75% barrier the investor earns the 10% coupon. Below it, losses follow the market down. The dashed line is the fixed-deposit baseline."],
+      ["scen", [0, 0, 692, 547], [[40, 160, 612, 46, "Barrier breached: -20%"]], "Scenario table",
+        "Each row shows what happens if the underlying moves by a set amount, from -30% to +20%: final value, net return and annualised return. At -30% the barrier is breached and the note loses 20%."],
+      ["replay", [0, 60, 692, 420], [[24, 90, 622, 270, "Return distribution"]], "Replay on real market history",
+        "The same terms are replayed on real past periods of the same length. This chart shows how outcomes spread: almost every period ended at the full coupon, with a thin tail of losses on the left."],
+      ["replay", [0, 420, 692, 260], [[40, 445, 520, 40, "Data snapshot"], [40, 550, 612, 62, "Worst ever"]], "The worst case, with proof",
+        "The table starts with the worst period ever: 2007-11-20 to 2008-11-20. The market fell 55.8%, the barrier was hit and the note returned -45.8%. The snapshot date and SHA-256 hash show exactly which data was used."],
+      ["replay", [0, 1150, 692, 650], [[40, 1245, 612, 62, "Barrier hit, still paid"], [40, 1684, 612, 62, "Barrier hit, still paid"]], "A barrier hit is not always a loss",
+        "In some periods the market touched the 75% barrier but recovered by the end, so the investor still got principal plus coupon. The HIT flag keeps that visible."],
+      ["mc", [374, 410, 692, 430], [[700, 411, 118, 32, "Monte Carlo tab"], [397, 560, 646, 255, "2,000 simulated paths"]], "The Monte Carlo fan",
+        "A block-bootstrap simulation draws 2,000 paths from past returns and plots percentile bands over the term. It is labelled statistical and model-based, not a forecast.", [759, 427]]
+    ]},
+    { t: "Check suitability", s: [
+      ["build", [374, 960, 692, 470], [[397, 1048, 323, 345, "Client rationale"], [721, 1048, 321, 345, "RM compliance"]], "Two explanations from one calculation",
+        "AI Rationale puts the client's plain-language explanation beside the RM's compliance summary: verdict (Not Suitable), score (61/100), risk tier (4 of 5) and the key risk metrics."],
+      ["suit", [0, 0, 692, 430], [[24, 125, 644, 290, "Core rules"]], "Four core rules, one verdict",
+        "Risk appetite, investment horizon, loss tolerance and concentration are each marked PASS, REVIEW or FAIL, with the reason beside them. Any FAIL makes the verdict Not Suitable. Any REVIEW means review is required."],
+      ["suit", [0, 120, 692, 300], [[24, 265, 644, 60, "FAIL"]], "Why this case failed",
+        "The worst replayed loss (-45.8%) exceeds the client's 30% loss tolerance. However attractive the coupon looks, a single FAIL decides the verdict."],
+      ["suit", [0, 410, 692, 320], [[24, 416, 644, 220, "Further checks"], [24, 652, 644, 64, "Compliance gates"]], "Further checks and compliance gates",
+        "Complexity, life stage, affordability, liquidity, currency risk, pricing sanity and KYC are checked too. Compliance gates cover vulnerable clients, stale profiles, FATCA and AML risk."],
+      ["suit", [0, 720, 692, 560], [[24, 731, 322, 345, "What the client sees"], [347, 731, 321, 345, "RM briefing"]], "Two audiences, the same facts",
+        "The client gets a short, jargon-free explanation. The RM gets a technical briefing with the actions each rule triggered. Every number in either text must exist in the computed facts."],
+      ["suit", [0, 1070, 692, 214], [[24, 1090, 644, 100, "Report for client"]], "Hand the client a report",
+        "Preview the client report or download it as a PDF: the answer, what the client told us, how the product measures up and a chart of real past results.", [585, 1141]],
+      ["rmfs", [40, 30, 1360, 860], [[98, 215, 587, 685, "Client-facing"], [755, 215, 587, 685, "RM technical"]], "Full screen for the client meeting",
+        "Full Screen opens both explanations side by side, ready to talk through. The RM side lists the rules that triggered, such as R-LOSS and R-RISK, and the stress loss."],
+      ["rmfs", [900, 100, 500, 120], [[1213, 139, 153, 30, "Fix-It Suggestions"]], "Not suitable? Ask for a fix",
+        "Fix-It Suggestions proposes changes to the terms that would resolve the mismatch, so you can test a better-fitting product instead of starting over.", [1290, 154]]
+    ]},
+    { t: "CPN and DCD", s: [
+      ["cpn", [24, 400, 1042, 560], [[45, 768, 288, 230, "Terms"], [397, 564, 646, 360, "Payoff"]], "Capital-Protected Note",
+        "Choose CPN and set capital protection (100%) and participation (80%). The payoff stays flat at the protected amount, then climbs with the underlying once it rises above its start level.", [189, 505]],
+      ["cpn", [374, 960, 692, 470], [[739, 1112, 290, 62, "Suitable, 100/100"]], "Every rule passes",
+        "Maximum loss is 0%, so this client gets a verdict of Suitable with a score of 100/100 and a risk tier of 1 of 5. The protection still depends on the issuer paying, and the rationale says so."],
+      ["dcd", [24, 400, 1042, 560], [[45, 764, 288, 285, "Terms"], [397, 560, 646, 360, "Payoff"]], "Dual Currency Deposit",
+        "A DCD pays interest (8.0% a year here) but may repay in another currency. If USD/INR ends past the strike (98.2978), the deposit converts at the strike and the payoff slopes down.", [189, 501]],
+      ["dcd", [374, 960, 692, 470], [[739, 1108, 290, 92, "Conditionally suitable, 84/100"]], "One item needs a human look",
+        "A review item makes the verdict Conditionally Suitable, with a score of 84/100. The maximum loss is 15.1% and the replayed chance of loss is 17.5%."]
+    ]},
+    { t: "Saved runs", s: [
+      ["dash", [118, 95, 950, 350], [[722, 105, 345, 80, "Score and exports"], [118, 222, 948, 95, "Terms"]], "Every run is saved",
+        "The Analysis Dashboard reopens any saved run with its run ID, case, data date and suitability score (61/100). Export the full record as JSON or as an HTML report.", [940, 144]],
+      ["dash", [118, 320, 950, 130], [[118, 327, 948, 60, "Issuer credit risk"], [118, 397, 948, 42, "Pricing flag"]], "Risks that are easy to miss",
+        "The blue banner shows issuer credit risk: about a 2.5% chance of default over the note's life, an expected loss of 1.48% of principal. The amber banner flags a coupon above the indicative fair value."],
+      ["dash", [118, 455, 950, 60], [[118, 462, 948, 40, "Eight tabs"]], "A tab for every question",
+        "Overview, Payoff, Scenarios, Replay, Monte Carlo, Suitability, Explanation and Audit. The Audit tab holds the hash-chain record for the run.", [174, 481]],
+      ["dash", [118, 515, 950, 325], [[118, 520, 466, 300, "Risk metrics"], [600, 520, 466, 315, "Payoff curve"]], "Overview: risk and payoff",
+        "Stress loss, probability of loss, CVaR 5%, median annualised return and volatility sit beside the payoff curve. CVaR 5% (27.5%) is the average loss in the worst 5% of simulated outcomes."],
+      ["dash", [600, 845, 470, 430], [[600, 848, 466, 425, "Suitability"]], "Rules and issues found",
+        "Twelve rules were evaluated for this Tier 4 product. Colour-coded chips show which passed, which need review and which failed, and the Issues Found list explains each flagged item."],
+      ["dash", [118, 1305, 950, 490], [[145, 1385, 895, 395, "Client-facing text"]], "The explanation, in five parts",
+        "What this product does, how you could earn, when you could lose money, why it does or does not fit, and what to discuss with your RM. The tag shows it came from the deterministic template."]
+    ]},
+    { t: "The client's view", s: [
+      ["portal", [0, 60, 1440, 640], [[24, 168, 333, 503, "My profile"], [377, 168, 686, 503, "Recommendation"], [1083, 168, 333, 503, "My corpus"]], "The client portal",
+        "After registering, the client lands here with three cards: their own profile, the product the RM recommends in plain language, and what their savings could look like."],
+      ["portal", [377, 168, 686, 503], [[401, 252, 202, 185, "What it is"], [619, 252, 202, 185, "Key terms"], [837, 252, 202, 185, "Risk and return"]], "A recommendation in three parts",
+        "What it is, the key terms (amount, tenor, protection, participation) and the risk and return, including the best case, worst case and chance of loss."],
+      ["portal", [24, 691, 686, 610], [[47, 805, 640, 470, "What-if projection"]], "A what-if projection",
+        "Projected total savings if the client follows the recommendation, compared with a fixed deposit. The good case (P90), median and weak case (P10) show the range of outcomes."],
+      ["portal", [730, 691, 686, 610], [[753, 888, 636, 330, "Four plain checks"]], "A redacted rationale",
+        "The client sees the verdict and four plain-language checks: risk comfort, horizon, loss tolerance and concentration. Compliance screening and the RM briefing are left out. Here the position is too large for the client's net worth, so the portal says Not Suitable."],
+      ["clfs", [40, 30, 1360, 860], [[73, 141, 1294, 118, "Verdict"], [727, 567, 640, 167, "Outside your limits"]], "Full-screen client explanation",
+        "The same decision as a verdict banner plus four check cards. Green bars are comfortable, amber needs a conversation and red is outside the client's limits. Only Concentration is red here: 66.7% against a 25% limit."],
+      ["profile", [144, 360, 812, 560], [[144, 573, 808, 328, "Risk profile"]], "Keep the profile current",
+        "Clients update risk appetite, investment horizon and maximum acceptable loss with simple controls. Changes save automatically and are shared with the relationship manager, so the next check uses fresh answers.", [688, 771]],
+      ["profile", [960, 360, 350, 400], [[976, 368, 320, 300, "Profile summary"], [976, 684, 320, 52, "Get recommendations"]], "Then ask for recommendations",
+        "The summary shows the numbers the rules will use. Get Recommendations ranks candidate products for this profile.", [1136, 710]]
+    ]}
+  ];
+
+  /* ---------- flatten steps ---------- */
+  var steps = [], chStart = [];
+  CH.forEach(function (c, ci) {
+    chStart.push(steps.length);
+    c.s.forEach(function (a) {
+      var k = IMG[a[0]].k || 1;
+      function sc(r) { return r.map(function (v, i) { return i < 4 ? Math.round(v * k) : v; }); }
+      var words = (a[4] || "").split(/\s+/).length;
+      steps.push({
+        img: a[0], f: sc(a[1]), hl: a[2].map(sc), title: a[3], text: a[4], pt: a[5] ? [Math.round(a[5][0] * k), Math.round(a[5][1] * k)] : null,
+        ch: ci, dur: Math.min(9, Math.max(5, 2.5 + words / 4.5))
+      });
+    });
+  });
+  var N = steps.length;
+  var total = steps.reduce(function (t, s) { return t + s.dur; }, 0);
+  document.getElementById("meta").textContent = N + " steps in " + CH.length + " chapters, about " + Math.round(total / 60) + " minutes on autoplay";
+
+  /* ---------- elements ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $("stage"), worldsEl = $("worlds"), startBtn = $("start"), playBtn = $("play"), prevBtn = $("prev"), nextBtn = $("next");
+  var track = $("track"), fill = $("fill"), knob = $("knob"), speedSel = $("speed"), caption = $("caption");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  var ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+  var ICON_REPLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>';
+
+  /* ---------- worlds ---------- */
+  var worlds = {}, uid = 0;
+  Object.keys(IMG).forEach(function (key) {
+    var im = IMG[key], id = "m" + (uid++);
+    var el = document.createElement("div");
+    el.className = "world nt";
+    el.innerHTML =
+      '<img alt="" draggable="false" src="' + im.f + '">' +
+      '<svg class="fx" viewBox="0 0 ' + im.w + " " + im.h + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" x="0" y="0" width="' + im.w + '" height="' + im.h + '"><rect width="' + im.w + '" height="' + im.h + '" fill="#fff"/><g class="holes"></g></mask></defs>' +
+      '<rect class="dim" width="' + im.w + '" height="' + im.h + '" fill="var(--dim)" mask="url(#' + id + ')"/>' +
+      '<g class="rings"></g></svg>' +
+      '<div class="tags"></div>' +
+      '<div class="cursor snap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2l17 8.2-7.3 2.1L9.6 20z" fill="#fff" stroke="#0b0c11" stroke-width="1.4" stroke-linejoin="round"/></svg></div>';
+    worldsEl.appendChild(el);
+    worlds[key] = { el: el, im: im, holes: el.querySelector(".holes"), rings: el.querySelector(".rings"), tags: el.querySelector(".tags"),
+      cursor: el.querySelector(".cursor"), cam: null, timers: [], cursorOn: false };
+  });
+
+  /* ---------- camera ---------- */
+  function camera(im, f) {
+    var W = stage.clientWidth, H = stage.clientHeight, u = W / im.w, s;
+    if (f[2] >= im.w * 0.98) { s = Math.min(W / (f[2] * u), H / (f[3] * u)); }
+    else { s = Math.min(W * 0.93 / (f[2] * u), H * 0.93 / (f[3] * u)); }
+    s = Math.min(s, 1.5 / u);
+    var cw = W * s, ch = W * im.h / im.w * s;
+    var tx = W / 2 - (f[0] + f[2] / 2) * u * s, ty = H / 2 - (f[1] + f[3] / 2) * u * s;
+    tx = cw >= W ? Math.min(0, Math.max(W - cw, tx)) : (W - cw) / 2;
+    ty = ch >= H ? Math.min(0, Math.max(H - ch, ty)) : (H - ch) / 2;
+    return { s: s, tx: tx, ty: ty, u: u };
+  }
+  function sizeWorld(w) {
+    var W = stage.clientWidth;
+    w.el.style.width = W + "px";
+    w.el.style.height = (W * w.im.h / w.im.w) + "px";
+  }
+  function applyCam(w, st) {
+    sizeWorld(w);
+    var c = camera(w.im, st.f);
+    w.cam = c;
+    w.el.style.transform = "translate(" + c.tx + "px," + c.ty + "px) scale(" + c.s + ")";
+    w.el.style.setProperty("--inv", String(1 / c.s));
+    return c;
+  }
+  function clearTimers(w) { w.timers.forEach(clearTimeout); w.timers = []; }
+  function later(w, fn, ms) { w.timers.push(setTimeout(fn, ms)); }
+
+  function drawOverlays(w, st) {
+    var c = w.cam, im = w.im, px = c.u * c.s, pad = 4 / px, sw = 3 / px;
+    var holes = "", rings = "", tags = "";
+    st.hl.forEach(function (r) {
+      var x = r[0] - pad, y = r[1] - pad, ww = r[2] + 2 * pad, hh = r[3] + 2 * pad, rx = 6 / px;
+      holes += '<rect x="' + x + '" y="' + y + '" width="' + ww + '" height="' + hh + '" rx="' + rx + '" fill="#000"/>';
+      rings += '<rect class="ring-glow" x="' + x + '" y="' + y + '" width="' + ww + '" height="' + hh + '" rx="' + rx + '" stroke-width="' + (sw * 3.4) + '"/>' +
+               '<rect class="ring-line" x="' + x + '" y="' + y + '" width="' + ww + '" height="' + hh + '" rx="' + rx + '" stroke-width="' + sw + '"/>';
+      if (r[4]) {
+        var below = y < im.h * 0.05;
+        var ax = x, ay = below ? y + hh : y;
+        tags += '<div class="tag ' + (below ? "down" : "up") + '" style="left:' + (ax / im.w * 100) + '%;top:' + (ay / im.h * 100) + '%"><span>' + r[4] + "</span></div>";
+      }
+    });
+    w.holes.innerHTML = holes;
+    w.rings.innerHTML = rings;
+    w.tags.innerHTML = tags;
+  }
+
+  function placeCursor(w, st, animate) {
+    var cur = w.cursor, im = w.im;
+    function pos(p) { cur.style.left = (p[0] / im.w * 100) + "%"; cur.style.top = (p[1] / im.h * 100) + "%"; }
+    cur.classList.remove("click");
+    if (!st.pt) { cur.classList.remove("on"); w.cursorOn = false; return; }
+    if (!w.cursorOn || !animate) {
+      cur.classList.add("snap");
+      pos([Math.max(0, st.pt[0] - 110), Math.min(im.h, st.pt[1] + 90)]);
+      void cur.offsetWidth;
+    }
+    cur.classList.add("on");
+    w.cursorOn = true;
+    later(w, function () {
+      cur.classList.remove("snap");
+      pos(st.pt);
+    }, animate ? 500 : 750);
+    later(w, function () { cur.classList.add("click"); }, animate ? 1600 : 1850);
+  }
+
+  /* ---------- player state ---------- */
+  var cur = -1, playing = false, started = false, elapsed = 0, last = 0, raf = 0;
+
+  function setPlayIcon() {
+    var done = !playing && cur === N - 1 && elapsed >= steps[cur].dur - 0.01;
+    playBtn.innerHTML = playing ? ICON_PAUSE : (done ? ICON_REPLAY : ICON_PLAY);
+    playBtn.setAttribute("aria-label", playing ? "Pause" : (done ? "Replay" : "Play"));
+    document.getElementById("startLabel").textContent = done ? "Replay walkthrough" : "Play walkthrough";
+  }
+  function updateStartVisibility() {
+    var done = !playing && cur === N - 1 && elapsed >= steps[cur].dur - 0.01;
+    startBtn.hidden = !(( !started && !playing) || done);
+  }
+
+  function show(i, opts) {
+    opts = opts || {};
+    i = Math.max(0, Math.min(N - 1, i));
+    var prev = cur >= 0 ? steps[cur] : null, st = steps[i];
+    var w = worlds[st.img];
+    var same = prev && prev.img === st.img && !opts.instant;
+    clearTimers(w);
+    if (!same) {
+      Object.keys(worlds).forEach(function (k) {
+        if (k !== st.img) { var o = worlds[k]; clearTimers(o); o.el.classList.remove("active", "lit"); o.cursor.classList.remove("on"); o.cursorOn = false; }
+      });
+      w.el.classList.add("nt");
+      w.el.classList.remove("lit");
+      applyCam(w, st);
+      drawOverlays(w, st);
+      void w.el.offsetWidth;
+      w.el.classList.remove("nt");
+      w.el.classList.add("active");
+      later(w, function () { w.el.classList.add("lit"); }, reduce ? 0 : 650);
+      placeCursor(w, st, false);
+    } else {
+      w.el.classList.remove("lit");
+      applyCam(w, st);
+      drawOverlays(w, st);
+      later(w, function () { w.el.classList.add("lit"); }, reduce ? 0 : 800);
+      placeCursor(w, st, true);
+    }
+    cur = i;
+    elapsed = 0;
+    updateUi();
+  }
+
+  function updateUi() {
+    var st = steps[cur], c = CH[st.ch];
+    $("pillN").textContent = pad2(cur + 1) + " / " + pad2(N);
+    $("pillC").textContent = c.t;
+    $("capEyebrow").textContent = "Chapter " + (st.ch + 1) + " of " + CH.length + "  /  " + c.t;
+    $("capTitle").textContent = st.title;
+    $("capBody").textContent = st.text;
+    caption.classList.remove("swap");
+    void caption.offsetWidth;
+    if (!reduce) caption.classList.add("swap");
+    prevBtn.disabled = cur === 0;
+    track.setAttribute("aria-valuenow", String(cur + 1));
+    track.setAttribute("aria-valuemax", String(N));
+    track.setAttribute("aria-valuetext", "Step " + (cur + 1) + " of " + N + ": " + st.title);
+    var items = document.querySelectorAll(".ch");
+    for (var a = 0; a < items.length; a++) items[a].classList.toggle("active", a === st.ch);
+    var btns = document.querySelectorAll(".ch ol button");
+    for (var b = 0; b < btns.length; b++) btns[b].classList.toggle("cur", b === cur);
+    renderProgress();
+    setPlayIcon();
+    updateStartVisibility();
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  function renderProgress() {
+    var frac = (cur + Math.min(1, elapsed / steps[cur].dur)) / N;
+    fill.style.width = (frac * 100) + "%";
+    knob.style.left = (frac * 100) + "%";
+  }
+
+  function frame(t) {
+    if (!playing) return;
+    var dt = Math.min(0.1, (t - last) / 1000);
+    last = t;
+    elapsed += dt * parseFloat(speedSel.value);
+    if (elapsed >= steps[cur].dur) {
+      if (cur < N - 1) { show(cur + 1); }
+      else { elapsed = steps[cur].dur; playing = false; renderProgress(); setPlayIcon(); updateStartVisibility(); return; }
+    } else { renderProgress(); }
+    raf = requestAnimationFrame(frame);
+  }
+  function play() {
+    if (cur === N - 1 && elapsed >= steps[cur].dur - 0.01) show(0);
+    started = true; playing = true; last = performance.now();
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+    setPlayIcon(); updateStartVisibility();
+  }
+  function pause() { playing = false; cancelAnimationFrame(raf); setPlayIcon(); updateStartVisibility(); }
+  function toggle() { playing ? pause() : play(); }
+  function go(i) { started = true; show(i); if (playing) { last = performance.now(); } updateStartVisibility(); }
+
+  /* ---------- chapters nav ---------- */
+  var nav = $("chapters");
+  CH.forEach(function (c, ci) {
+    var d = document.createElement("div");
+    d.className = "ch";
+    var head = document.createElement("button");
+    head.type = "button";
+    head.innerHTML = '<span class="n">' + (ci + 1) + "</span><span>" + c.t + '</span><span class="c">' + c.s.length + "</span>";
+    head.addEventListener("click", function () { go(chStart[ci]); });
+    d.appendChild(head);
+    var ol = document.createElement("ol");
+    c.s.forEach(function (_, si) {
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.textContent = steps[chStart[ci] + si].title;
+      b.addEventListener("click", function () { go(chStart[ci] + si); });
+      li.appendChild(b); ol.appendChild(li);
+    });
+    d.appendChild(ol);
+    nav.appendChild(d);
+  });
+
+  /* ---------- progress ticks + seeking ---------- */
+  chStart.forEach(function (s, i) {
+    if (i === 0) return;
+    var t = document.createElement("div");
+    t.className = "tick"; t.style.left = (s / N * 100) + "%";
+    track.appendChild(t);
+  });
+  function seek(ev) {
+    var r = track.getBoundingClientRect();
+    var f = Math.max(0, Math.min(0.9999, (ev.clientX - r.left) / r.width));
+    go(Math.floor(f * N));
+  }
+  var dragging = false;
+  track.addEventListener("pointerdown", function (e) { dragging = true; try { track.setPointerCapture(e.pointerId); } catch (x) {} seek(e); });
+  track.addEventListener("pointermove", function (e) { if (dragging) seek(e); });
+  track.addEventListener("pointerup", function () { dragging = false; });
+  track.addEventListener("pointercancel", function () { dragging = false; });
+
+  /* ---------- controls ---------- */
+  startBtn.addEventListener("click", play);
+  playBtn.addEventListener("click", toggle);
+  prevBtn.addEventListener("click", function () { go(cur - 1); });
+  nextBtn.addEventListener("click", function () { go(cur + 1); });
+  speedSel.addEventListener("change", function () { last = performance.now(); });
+  $("fs").addEventListener("click", function () {
+    var sh = $("shell");
+    try {
+      if (document.fullscreenElement) { document.exitFullscreen(); }
+      else if (sh.requestFullscreen) { var p = sh.requestFullscreen(); if (p && p.catch) p.catch(function () {}); }
+    } catch (e) {}
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var t = e.target, inCtl = t && t.closest && t.closest("button, select, [role=slider]");
+    if (e.key === "ArrowRight") { if (t && t.tagName === "SELECT") return; e.preventDefault(); go(cur + 1); }
+    else if (e.key === "ArrowLeft") { if (t && t.tagName === "SELECT") return; e.preventDefault(); go(cur - 1); }
+    else if ((e.key === " " || e.key === "k") && !inCtl) { e.preventDefault(); toggle(); }
+    else if (e.key === "Home" && t === track) { e.preventDefault(); go(0); }
+    else if (e.key === "End" && t === track) { e.preventDefault(); go(N - 1); }
+  });
+  var rz = 0;
+  window.addEventListener("resize", function () {
+    cancelAnimationFrame(rz);
+    rz = requestAnimationFrame(function () {
+      var st = steps[cur], w = worlds[st.img];
+      w.el.classList.add("nt");
+      applyCam(w, st);
+      drawOverlays(w, st);
+      void w.el.offsetWidth;
+      w.el.classList.remove("nt");
+    });
+  });
+
+  /* ---------- start ---------- */
+  var first = 0;
+  try { var m = /^#step-(\d+)$/.exec(location.hash || ""); if (m) first = Math.max(0, Math.min(N - 1, parseInt(m[1], 10) - 1)); } catch (e) {}
+  show(first, { instant: true });
+  if (first > 0) { started = true; updateStartVisibility(); }
+})();
+</script>
